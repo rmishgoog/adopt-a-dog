@@ -111,3 +111,14 @@ dev-cluster-status:
 	kubectl get nodes -o wide
 	kubectl get po -o wide --all-namespaces --watch
 #=====================================================================================================
+#Local execution from command line & go moduling related commands
+
+run:
+	go run apis/services/adoptions/main.go
+
+run-logfmt:
+	go run apis/services/adoptions/main.go | go run apis/tooling/logfmt/main.go
+
+tidy:
+	go mod tidy
+	go mod vendor
