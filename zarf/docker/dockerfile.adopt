@@ -1,0 +1,25 @@
+FROM golang:1.23 as build_adoption
+ENV CGO_ENABLED 0
+ARG BUILD_REF
+
+COPY . /service
+WORKDIR /service/apis/services/adoptions
+RUN go build -ldflags "-X main.build=${BUILD_REF}"
+
+FROM alpine:3.12
+ARG BUILD_REF
+ARG BUILD_DATE
+RUN addgroup -g 1000 -S adoption && adduser -u 1000 -S adoption -G adoption -h /home/adoption
+COPY --from=build_adoption --chown=adoption:adoption /service/apis/services/adoptions/adoptions /service/adoptions
+WORKDIR /service
+USER adoption
+CMD ["./adoptions"]
+
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.title="adoption" \
+      org.opencontainers.image.authors="Rohit Mishra <rohitmishra@google.com>" \
+      org.opencontainers.image.source="https://github.com/rmishgoog/adopt-a-dog" \
+      org.opencontainers.image.revision="${BUILD_REF}" \
+      org.opencontainers.image.vendor="None"
+
+
