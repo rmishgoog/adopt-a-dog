@@ -6,7 +6,7 @@ COPY . /service
 WORKDIR /service/apis/services/adoptions
 RUN go build -ldflags "-X main.build=${BUILD_REF}"
 
-FROM alpine:3.12
+FROM alpine:3.20
 ARG BUILD_REF
 ARG BUILD_DATE
 RUN addgroup -g 1000 -S adoption && adduser -u 1000 -S adoption -G adoption -h /home/adoption

@@ -129,7 +129,7 @@ tidy:
 #=====================================================================================================
 #Build the application images
 
-build: adoptadog-image
+build: adoptadog-image	adoptadog-image-upload
 
 adoptadog-image:
 	docker build \
@@ -138,4 +138,8 @@ adoptadog-image:
 		--build-arg BUILD_REF=$(VERSION) \
 		--build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
 		.
+
+adoptadog-image-upload:
+	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
+	wait;
 #=====================================================================================================
