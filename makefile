@@ -12,6 +12,7 @@ PROMTAIL        := grafana/promtail:3.1.0
 KIND_CLUSTER    := local-cluster
 NAMESPACE       := adoption-system
 ADOPT_APP       := adoptadog
+ADOPT_DEPLOY    := adoptions
 AUTH_APP        := auth
 BASE_IMAGE_NAME := localhost/rmishgoog
 VERSION         := 0.0.1
@@ -142,4 +143,34 @@ adoptadog-image:
 adoptadog-image-upload:
 	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
 	wait;
+#=====================================================================================================
+#Deploy the application to the Kubernetes cluster
+
+dev-apply:
+	kustomize build zarf/k8s/dev/adoptions | kubectl apply -f -
+	kubectl wait pods --for=condition=Ready --timeout=120s -n $(NAMESPACE) --selector app=$(ADOPT_DEPLOY)
+
+dev-restart:
+	kubectl rollout restart deployment $(ADOPT_DEPLOY)  -n $(NAMESPACE)
+
+dev-deploy-status:
+	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
+
+dev-logs-adoption:
+	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE)
+
+dev-logs:
+	kubectl logs -f -l app=adoptions -n $(NAMESPACE)
+#=====================================================================================================
+#Build & deploy the application from scratch
+
+dev-build-deploy: build dev-apply dev-deploy-status
+#=====================================================================================================
+#Describe the application deployment & pods
+
+dev-describe-deployment:
+	kubectl describe deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
+
+dev-describe-pods:
+	kubectl describe pods -n $(NAMESPACE) -l app=$(ADOPT_DEPLOY)
 #=====================================================================================================
