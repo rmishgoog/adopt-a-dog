@@ -17,6 +17,11 @@ spec:
       containers:
       - name: adoptions
         image: adoptions-image
+        env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.cpu
         resources:
           requests:
             memory: "64Mi"
