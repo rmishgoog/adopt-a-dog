@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 )
 
@@ -93,6 +95,15 @@ func run(ctx context.Context, log *logger.Logger) error {
 		return fmt.Errorf("failed marshalling config: %w", err)
 	}
 	log.Info(ctx, "service startup", "config", out)
+
+	// Start the debug service.
+
+	go func() {
+		log.Info(ctx, "debug-service", "status", "started", "host", cfg.Web.DebugHost)
+		if err := http.ListenAndServe(cfg.Web.DebugHost, debug.Mux()); err != nil {
+			log.Error(ctx, "debug-service", "status", "shutdown", "host", cfg.Web.DebugHost, "err", err)
+		}
+	}()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
