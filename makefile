@@ -156,15 +156,19 @@ dev-restart:
 dev-deploy-status:
 	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
 
-dev-logs-adoption:
-	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE)
+dev-logs-fmtd:
+	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE) --tail=100 --max-log-requests=6 | go run apis/tooling/logfmt/main.go
 
-dev-logs:
+dev-logs-raw:
 	kubectl logs -f -l app=adoptions -n $(NAMESPACE)
 #=====================================================================================================
 #Build & deploy the application from scratch
 
 dev-build-deploy: build dev-apply dev-deploy-status
+#=====================================================================================================
+#Build, upload image & restrat the deployment
+
+dev-build-upload: build dev-restart
 #=====================================================================================================
 #Describe the application deployment & pods
 

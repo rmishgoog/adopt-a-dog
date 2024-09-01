@@ -107,12 +107,42 @@ func run(ctx context.Context, log *logger.Logger) error {
 		}
 	}()
 
+	// Start the API service.
+	log.Info(ctx, "startup", "status", "initializing V1 API support")
+
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-shutdown
 
-	log.Info(ctx, "server-shutdown", "status", "shutdown started", "signal", sig)
-	defer log.Info(ctx, "server-shutdown", "status", "shutdown complete", "signal", sig)
+	apirouter := http.Server{
+		Addr:         cfg.Web.APIHost,
+		Handler:      nil,
+		ReadTimeout:  cfg.Web.ReadTimeout,
+		WriteTimeout: cfg.Web.WriteTimeout,
+		IdleTimeout:  cfg.Web.IdleTimeout,
+		ErrorLog:     logger.NewStdLogger(log, logger.LevelError),
+	}
+
+	serverErrors := make(chan error, 1)
+	// This shall server as the parent goroutine for the API requests, each request will be handled by a child goroutine created by the routine running the router.
+	go func() {
+		log.Info(ctx, "startup", "status", "starting api router", "host", apirouter.Addr)
+		serverErrors <- apirouter.ListenAndServe()
+	}()
+
+	// Router shutdown & handling process interruption signals.
+	select {
+	case err := <-serverErrors:
+		return fmt.Errorf("server error: %w", err)
+	case sig := <-shutdown:
+		log.Info(ctx, "server-shutdown", "status", "shutdown started", "signal", sig)
+		defer log.Info(ctx, "server-shutdown", "status", "shutdown complete", "signal", sig)
+		ctx, cancel := context.WithTimeout(ctx, cfg.Web.ShutdownTimeout)
+		defer cancel()
+		if err := apirouter.Shutdown(ctx); err != nil {
+			apirouter.Close()
+			return fmt.Errorf("could not stop api server gracefully: %w", err)
+		}
+	}
 
 	return nil
 
