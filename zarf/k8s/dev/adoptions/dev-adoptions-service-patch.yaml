@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: adoptions
+  namespace: adoption-system
+spec:
+  type: ClusterIP
+  selector:
+    app: adoptions
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: adoptions
+      name: adoptions
+    - protocol: TCP
+      port: 3010
+      targetPort: adoptions-debug
+      name: adoptions-debug

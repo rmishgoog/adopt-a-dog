@@ -22,6 +22,11 @@ spec:
       containers:
       - name: adoptions
         image: adoptions-image
+        ports:
+        - containerPort: 3000
+          name: adoptions
+        - containerPort: 3010
+          name: adoptions-debug
         env:
           - name: GOMAXPROCS
             valueFrom:
@@ -36,12 +41,12 @@ spec:
             cpu: "500m"
 ---
 
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: adoptions
-#   namespace: adoption-system
-# spec:
-#   type: ClusterIP
-#   selector:
-#     app: adoptions
+apiVersion: v1
+kind: Service
+metadata:
+  name: adoptions
+  namespace: adoption-system
+spec:
+  type: ClusterIP
+  selector:
+    app: adoptions

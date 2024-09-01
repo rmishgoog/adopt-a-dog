@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"expvar"
 	"fmt"
 	"net/http"
 	"os"
@@ -95,6 +96,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		return fmt.Errorf("failed marshalling config: %w", err)
 	}
 	log.Info(ctx, "service startup", "config", out)
+	expvar.NewString("build").Set(cfg.Build)
 
 	// Start the debug service.
 
