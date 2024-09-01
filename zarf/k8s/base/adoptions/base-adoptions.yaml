@@ -18,7 +18,7 @@ spec:
       labels:
         app: adoptions
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 60
       containers:
       - name: adoptions
         image: adoptions-image

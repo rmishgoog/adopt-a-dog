@@ -76,6 +76,18 @@ func run(ctx context.Context, log *logger.Logger) error {
 			Build: build,
 			Desc:  "adoptions",
 		},
+
+		Web: struct {
+			ReadTimeout        time.Duration `conf:"default:5s"`
+			WriteTimeout       time.Duration `conf:"default:10s"`
+			IdleTimeout        time.Duration `conf:"default:120s"`
+			ShutdownTimeout    time.Duration `conf:"default:20s"`
+			APIHost            string        `conf:"default:0.0.0.0:3000"`
+			DebugHost          string        `conf:"default:0.0.0.0:3010"`
+			CORSAllowedOrigins []string      `conf:"default:*,mask"`
+		}{
+			ShutdownTimeout: 60 * time.Second,
+		},
 	}
 
 	const prefix = "adoptions"
