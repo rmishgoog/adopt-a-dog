@@ -167,7 +167,7 @@ dev-build-deploy: build dev-apply dev-deploy-status
 #=====================================================================================================
 #Build, upload image & restrat the deployment
 
-dev-build-upload: build dev-restart
+dev-build-restrat: build dev-restart
 #=====================================================================================================
 #Describe the application deployment & pods
 
@@ -204,3 +204,7 @@ dev-cluster-cilium-cep:
 dev-cluster-cilium-config-view:
 	cilium config view
 #=====================================================================================================
+# Basic local service testing
+
+dev-adoptadog-health:
+	curl -X GET http://localhost:3000/health
