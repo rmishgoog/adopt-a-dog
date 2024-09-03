@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/mux"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 )
@@ -127,7 +128,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	apirouter := http.Server{
 		Addr:         cfg.Web.APIHost,
-		Handler:      nil,
+		Handler:      mux.WebAPI(),
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,

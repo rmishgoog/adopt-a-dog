@@ -20,6 +20,7 @@ ADOPT_IMAGE     := $(BASE_IMAGE_NAME)/$(ADOPT_APP):$(VERSION)
 METRICS_IMAGE   := $(BASE_IMAGE_NAME)/metrics:$(VERSION)
 AUTH_IMAGE      := $(BASE_IMAGE_NAME)/$(AUTH_APP):$(VERSION)
 CILIUM_CLI      := v0.16.15
+CILIUM_NS	    := kube-system
 CILIUM_VERSION  := v1.16.0
 GOOS            := $(shell go env GOOS)
 GOARCH          := $(shell go env GOARCH)
@@ -100,11 +101,9 @@ dev-cluster-cilium-install:
 
 	rm cilium-$(GOOS)-$(GOARCH).tar.gz && rm cilium-linux-amd64.tar.gz.sha256sum
 	
-	cilium install --version $(CILIUM_VERSION)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
+	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
 	cilium status --wait
 
-dev-cluster-cilium-uninstall:
-	cilium uninstall --all
 
 dev-cluster-down:
 	kind delete cluster --name $(KIND_CLUSTER)
@@ -177,4 +176,31 @@ dev-describe-deployment:
 
 dev-describe-pods:
 	kubectl describe pods -n $(NAMESPACE) -l app=$(ADOPT_DEPLOY)
+#=====================================================================================================
+# Operations for Cilium
+
+dev-cilium-status:
+	cilium status
+
+dev-cluster-cilium-reinstall:
+	cilium uninstall
+	wait;
+
+	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
+	cilium status --wait
+
+dev-cluster-cilium-client:
+	cilium version --client
+
+dev-cluster-cilium-server:
+	cilium version
+
+dev-cluster-cilium-uninstall:
+	cilium uninstall
+
+dev-cluster-cilium-cep:
+	kubectl get cep --all-namespaces
+
+dev-cluster-cilium-config-view:
+	cilium config view
 #=====================================================================================================
