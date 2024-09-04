@@ -1,24 +1,16 @@
 package mux
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/route/system/healthchek"
 )
 
 func WebAPI() *http.ServeMux {
 
+	// It's always a good practice to create your own mux, never use the DefaultServerMux for production projects.
 	mux := http.NewServeMux()
-
-	h := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		status := struct {
-			Status string `json:"status"`
-		}{
-			Status: "ok",
-		}
-		json.NewEncoder(w).Encode(status)
-	}
-	mux.HandleFunc("/health", h)
+	healthchek.Routes(mux)
 
 	return mux
 }

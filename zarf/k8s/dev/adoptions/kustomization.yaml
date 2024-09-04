@@ -3,8 +3,8 @@ kind: Kustomization
 resources:
   - ../../base/adoptions/
 patches:
-  - path: ./dev-adoptions-deployment-patch.yaml
-  - path: ./dev-adoptions-service-patch.yaml
+  - path: ./dev-deployment-patch.yaml
+  - path: ./dev-service-patch.yaml
 images:
   - name: adoptions-image
     newName: localhost/rmishgoog/adoptadog

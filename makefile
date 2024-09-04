@@ -165,7 +165,7 @@ dev-logs-raw:
 
 dev-build-deploy: build dev-apply dev-deploy-status
 #=====================================================================================================
-#Build, upload image & restrat the deployment
+#Build, upload image & restrat the deployment, no KRM changes
 
 dev-build-restrat: build dev-restart
 #=====================================================================================================
@@ -206,5 +206,8 @@ dev-cluster-cilium-config-view:
 #=====================================================================================================
 # Basic local service testing
 
-dev-adoptadog-health:
-	curl -X GET http://localhost:3000/health
+dev-adoptadog-liveness:
+	curl -X GET http://localhost:3000/liveness
+
+dev-adoptadog-readiness:
+	curl -X GET http://localhost:3000/readiness
