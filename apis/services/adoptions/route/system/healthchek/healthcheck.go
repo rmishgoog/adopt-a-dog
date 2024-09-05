@@ -1,24 +1,25 @@
 package healthchek
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
-func liveness(w http.ResponseWriter, r *http.Request) {
+func liveness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	status := struct {
 		Status string `json:"status"`
 	}{
 		Status: "ok",
 	}
-	json.NewEncoder(w).Encode(status)
+	return json.NewEncoder(w).Encode(status)
 }
 
-func readiness(w http.ResponseWriter, r *http.Request) {
+func readiness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	status := struct {
 		Status string `json:"status"`
 	}{
 		Status: "ok",
 	}
-	json.NewEncoder(w).Encode(status)
+	return json.NewEncoder(w).Encode(status)
 }

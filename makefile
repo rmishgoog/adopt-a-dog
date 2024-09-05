@@ -206,8 +206,12 @@ dev-cluster-cilium-config-view:
 #=====================================================================================================
 # Basic local service testing
 
+dev-kubectl-forward:
+	kubectl port-forward svc/adoptions 3000:3000 -n $(NAMESPACE)& >> /dev/null
+
 dev-adoptadog-liveness:
 	curl -X GET http://localhost:3000/liveness
 
 dev-adoptadog-readiness:
 	curl -X GET http://localhost:3000/readiness
+#=====================================================================================================

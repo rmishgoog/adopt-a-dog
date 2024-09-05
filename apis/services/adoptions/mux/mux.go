@@ -1,15 +1,16 @@
 package mux
 
 import (
-	"net/http"
+	"os"
 
 	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/route/system/healthchek"
+	"github.com/rmishgoog/adopt-a-dog/foundations/web"
 )
 
-func WebAPI() *http.ServeMux {
+func WebAPI(shutdown chan os.Signal) *web.App {
 
 	// It's always a good practice to create your own mux, never use the DefaultServerMux for production projects.
-	mux := http.NewServeMux()
+	mux := web.NewApp(shutdown)
 	healthchek.Routes(mux)
 
 	return mux

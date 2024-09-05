@@ -1,10 +1,12 @@
 package healthchek
 
-import "net/http"
+import (
+	"github.com/rmishgoog/adopt-a-dog/foundations/web"
+)
 
 // Build routes and configure them on the mux.
-func Routes(mux *http.ServeMux) {
+func Routes(app *web.App) {
 
-	mux.HandleFunc("/liveness", liveness)
-	mux.HandleFunc("/readiness", readiness)
+	app.HandleFunc("/liveness", liveness)
+	app.HandleFunc("/readiness", readiness)
 }
