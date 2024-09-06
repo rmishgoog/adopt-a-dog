@@ -24,6 +24,8 @@ CILIUM_NS	    := kube-system
 CILIUM_VERSION  := v1.16.0
 GOOS            := $(shell go env GOOS)
 GOARCH          := $(shell go env GOARCH)
+HUBBLE_ARCH     := amd64
+HUBBLE_VERSION  := $(shell curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
 #=====================================================================================================
 #Install environment dependencies
 
@@ -78,7 +80,7 @@ dev-docker:
 	wait;
 
 #=====================================================================================================
-#Prepare the Kubernetes environment & manage the cluster
+#Prepare the Kubernetes environment & manage the cluster (AMD64/x_86 only)
 
 dev-cluster-up:
 	kind create cluster --name $(KIND_CLUSTER) --image $(KIND) --config zarf/k8s/dev/kind-config.yaml
@@ -103,6 +105,27 @@ dev-cluster-cilium-install:
 	
 	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
 	cilium status --wait
+
+dev-cluster-hubble-cli-install:
+	curl -L --fail --remote-name-all https://github.com/cilium/hubble/releases/download/$(HUBBLE_VERSION)/hubble-linux-$(HUBBLE_ARCH).tar.gz{,.sha256sum} & \
+	wait;
+
+	sudo tar xzvfC hubble-linux-$(HUBBLE_ARCH).tar.gz /usr/local/bin & \
+	wait;
+
+	rm hubble-linux-$(HUBBLE_ARCH).tar.gz && rm hubble-linux-$(HUBBLE_ARCH).tar.gz.sha256sum & \
+	hubble version
+
+	cilium hubble enable --ui & \
+	cilium status --wait
+
+dev-cluster-hubble-show: dev-cluster-hubble-port-forward dev-cluster-hubble-status
+
+dev-cluster-hubble-port-forward:
+	cilium hubble port-forward &
+
+dev-cluster-hubble-status:
+	hubble status
 
 
 dev-cluster-down:
@@ -214,4 +237,7 @@ dev-adoptadog-liveness:
 
 dev-adoptadog-readiness:
 	curl -X GET http://localhost:3000/readiness
+
+dev-adoptadog-endpoint-load:
+	hey -n 1000 -c 10 http://localhost:3000/liveness
 #=====================================================================================================
