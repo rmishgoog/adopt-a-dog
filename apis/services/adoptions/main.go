@@ -16,6 +16,7 @@ import (
 	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/mux"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
+	"github.com/rmishgoog/adopt-a-dog/foundations/web"
 )
 
 var build = "develop"
@@ -30,8 +31,7 @@ func main() {
 	}
 
 	traceIDFn := func(ctx context.Context) string {
-		//return web.GetTraceID(ctx)
-		return ""
+		return web.GetTraceID(ctx)
 	}
 
 	log = logger.NewWithEvents(os.Stdout, logger.LevelInfo, "Adoptions", traceIDFn, events)

@@ -10,6 +10,10 @@ import (
 
 func Respond(ctx context.Context, w http.ResponseWriter, r *http.Request, data any, statusCode int) error {
 
+	// Set the status code for the request.
+
+	setStatusCode(ctx, statusCode)
+
 	if statusCode == http.StatusNoContent {
 		w.WriteHeader(statusCode)
 		return nil
