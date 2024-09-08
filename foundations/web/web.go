@@ -29,8 +29,8 @@ func NewApp(shutdown chan os.Signal, mw ...MidHandler) *App {
 // This is an override of the promoted API method from the embedded ServeMux.
 func (a *App) HandleFunc(pattern string, handler Handler, mw ...MidHandler) {
 
-	handler = wrapMiddleware(mw, handler)
-	handler = wrapMiddleware(a.mw, handler)
+	handler = wrapMiddleware(mw, handler)   // At this point in time we have none, so this is a no-op.
+	handler = wrapMiddleware(a.mw, handler) // Here we have the middleware from the App struct, currently the logger middleware.
 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		v := Values{
