@@ -6,6 +6,7 @@ KIND            := kindest/node:v1.31.0
 POSTGRES        := postgres:16.4
 GRAFANA         := grafana/grafana:11.1.0
 PROMETHEUS      := prom/prometheus:v2.54.0
+KEYCLOAK        := quay.io/keycloak/keycloak:25.0.4
 TEMPO           := grafana/tempo:2.5.0
 LOKI            := grafana/loki:3.1.0
 PROMTAIL        := grafana/promtail:3.1.0
@@ -76,22 +77,28 @@ dev-docker:
 	docker pull $(GRAFANA)& \
 	docker pull $(LOKI)& \
 	docker pull $(PROMTAIL)& \
-	docker pull $(TEMPO)
+	docker pull $(TEMPO)& \
+	docker pull $(KEYCLOAK)& \
 	wait;
 
 #=====================================================================================================
 #Prepare the Kubernetes environment & manage the cluster (AMD64/x_86 only)
 
+dev-bootstrap-kind: dev-cluster-up dev-docker-loads
+
 dev-cluster-up:
 	kind create cluster --name $(KIND_CLUSTER) --image $(KIND) --config zarf/k8s/dev/kind-config.yaml
 
+dev-docker-loads:
 	kind load docker-image $(POSTGRES) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(GRAFANA) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(PROMETHEUS) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(TEMPO) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(LOKI) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(PROMTAIL) --name $(KIND_CLUSTER) & \
+	kind load docker-image $(KEYCLOAK) --name $(KIND_CLUSTER) & \
 	wait;
+
 
 dev-cluster-cilium-install:
 	curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI)/cilium-$(GOOS)-$(GOARCH).tar.gz{,.sha256sum} & \
