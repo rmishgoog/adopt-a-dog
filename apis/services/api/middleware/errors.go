@@ -47,13 +47,11 @@ func Errors(log *logger.Logger) web.MidHandler {
 				if err := web.Respond(ctx, w, r, errs, codeStatus[errs.Code.Value()]); err != nil {
 					return err
 				}
-				return nil
 			}
 			return nil
 
 		}
 		return h
 	}
-
 	return m
 }
