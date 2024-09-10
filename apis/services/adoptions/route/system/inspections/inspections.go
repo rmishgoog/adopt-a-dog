@@ -24,6 +24,9 @@ func genErrors(ctx context.Context, w http.ResponseWriter, r *http.Request) erro
 }
 
 func genPanics(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if n := rand.Intn(100); n%2 == 0 {
+		return errs.Newf(errs.FailedPrecondition, "randomly generated panic")
+	}
 	status := struct {
 		Status string `json:"status"`
 	}{
