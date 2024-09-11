@@ -7,6 +7,6 @@ import (
 // Build routes and configure them on the mux.
 func Routes(app *web.App) {
 
-	app.HandleFunc("/liveness", liveness)
-	app.HandleFunc("/readiness", readiness)
+	app.HandleFuncNoMiddleware("/liveness", liveness)
+	app.HandleFuncNoMiddleware("/readiness", readiness)
 }

@@ -44,3 +44,18 @@ func (a *App) HandleFunc(pattern string, handler Handler, mw ...MidHandler) {
 	}
 	a.ServeMux.HandleFunc(pattern, h)
 }
+
+func (a *App) HandleFuncNoMiddleware(pattern string, handler Handler, mw ...MidHandler) {
+
+	h := func(w http.ResponseWriter, r *http.Request) {
+		v := Values{
+			TraceID: uuid.NewString(),
+			Now:     time.Now().UTC(),
+		}
+		ctx := setValues(r.Context(), &v)
+		if err := handler(ctx, w, r); err != nil {
+			fmt.Println(err)
+		}
+	}
+	a.ServeMux.HandleFunc(pattern, h)
+}
