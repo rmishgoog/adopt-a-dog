@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-proxy
+  namespace: traefik-system
+spec:
+  type: NodePort
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: proxy
+      nodePort: 30080
+  selector:
+    app: traefik
+
+---
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: traefik-proxy
+  namespace: traefik-system
+  labels:
+    app: traefik
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik-sa
+      containers:
+        - name: traefik
+          image: traefik:v3.1
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          args:
+            - --api.insecure
+            - --providers.kubernetesingress
+          ports:
+            - name: proxy
+              containerPort: 80

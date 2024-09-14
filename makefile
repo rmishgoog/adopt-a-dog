@@ -1,32 +1,36 @@
 #=====================================================================================================
 #Define the dependencies for local workstation (Linux (Debian or Ubuntu)only, must be AMD64/x_86 or ARM64), Windows & Macs are not supported at the moment)
-GOLANG          := golang:1.23
-ALPINE          := alpine:3.20
-KIND            := kindest/node:v1.31.0
-POSTGRES        := postgres:16.4
-GRAFANA         := grafana/grafana:11.1.0
-PROMETHEUS      := prom/prometheus:v2.54.0
-KEYCLOAK        := quay.io/keycloak/keycloak:25.0.4
-TEMPO           := grafana/tempo:2.5.0
-LOKI            := grafana/loki:3.1.0
-PROMTAIL        := grafana/promtail:3.1.0
-KIND_CLUSTER    := local-cluster
-NAMESPACE       := adoption-system
-ADOPT_APP       := adoptadog
-ADOPT_DEPLOY    := adoptions
-AUTH_APP        := auth
-BASE_IMAGE_NAME := localhost/rmishgoog
-VERSION         := 0.0.1
-ADOPT_IMAGE     := $(BASE_IMAGE_NAME)/$(ADOPT_APP):$(VERSION)
-METRICS_IMAGE   := $(BASE_IMAGE_NAME)/metrics:$(VERSION)
-AUTH_IMAGE      := $(BASE_IMAGE_NAME)/$(AUTH_APP):$(VERSION)
-CILIUM_CLI      := v0.16.15
-CILIUM_NS	    := kube-system
-CILIUM_VERSION  := v1.16.0
-GOOS            := $(shell go env GOOS)
-GOARCH          := $(shell go env GOARCH)
-HUBBLE_ARCH     := amd64
-HUBBLE_VERSION  := $(shell curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
+GOLANG            := golang:1.23
+ALPINE            := alpine:3.20
+KIND              := kindest/node:v1.31.0
+POSTGRES          := postgres:16.4
+GRAFANA           := grafana/grafana:11.1.0
+PROMETHEUS        := prom/prometheus:v2.54.0
+KEYCLOAK          := quay.io/keycloak/keycloak:25.0.4
+TEMPO             := grafana/tempo:2.5.0
+LOKI              := grafana/loki:3.1.0
+PROMTAIL          := grafana/promtail:3.1.0
+TRAEFIK           := traefik:v3.1
+KIND_CLUSTER      := local-cluster
+NAMESPACE         := adoption-system
+TRAEFIK_NAMESPACE := traefik-system
+ADOPT_APP         := adoptadog
+ADOPT_DEPLOY      := adoptions
+TRAEFIK_APP	      := traefik
+TRAEFIK_DEPLOY    := traefik-proxy
+AUTH_APP          := auth
+BASE_IMAGE_NAME   := localhost/rmishgoog
+VERSION           := 0.0.1
+ADOPT_IMAGE       := $(BASE_IMAGE_NAME)/$(ADOPT_APP):$(VERSION)
+METRICS_IMAGE     := $(BASE_IMAGE_NAME)/metrics:$(VERSION)
+AUTH_IMAGE        := $(BASE_IMAGE_NAME)/$(AUTH_APP):$(VERSION)
+CILIUM_CLI        := v0.16.15
+CILIUM_NS	      := kube-system
+CILIUM_VERSION    := v1.16.0
+GOOS              := $(shell go env GOOS)
+GOARCH            := $(shell go env GOARCH)
+HUBBLE_ARCH       := amd64
+HUBBLE_VERSION    := $(shell curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
 #=====================================================================================================
 #Install environment dependencies
 
@@ -79,6 +83,7 @@ dev-docker:
 	docker pull $(PROMTAIL)& \
 	docker pull $(TEMPO)& \
 	docker pull $(KEYCLOAK)& \
+	docker pull $(TRAEFIK)& \
 	wait;
 
 #=====================================================================================================
@@ -97,6 +102,7 @@ dev-docker-loads:
 	kind load docker-image $(LOKI) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(PROMTAIL) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(KEYCLOAK) --name $(KIND_CLUSTER) & \
+	kind load docker-image $(TRAEFIK) --name $(KIND_CLUSTER) & \
 	wait;
 
 
@@ -173,17 +179,27 @@ adoptadog-image-upload:
 	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
 	wait;
 #=====================================================================================================
-#Deploy the application to the Kubernetes cluster
+#Deploy the application to the Kubernetes cluster & install traefik proxy
 
 dev-apply:
 	kustomize build zarf/k8s/dev/adoptions | kubectl apply -f -
 	kubectl wait pods --for=condition=Ready --timeout=120s -n $(NAMESPACE) --selector app=$(ADOPT_DEPLOY)
+
+dev-apply-traefik:
+	kustomize build zarf/k8s/dev/traefik | kubectl apply -f -
+	kubectl wait pods --for=condition=Ready --timeout=120s -n $(TRAEFIK_NAMESPACE) --selector app=$(TRAEFIK_APP)
 
 dev-restart:
 	kubectl rollout restart deployment $(ADOPT_DEPLOY)  -n $(NAMESPACE)
 
 dev-deploy-status:
 	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
+
+dev-restart-traefik:
+	kubectl rollout restart deployment $(TRAEFIK_DEPLOY)  -n $(TRAEFIK_NAMESPACE)
+
+dev-deploy-traefik-status:
+	kubectl rollout status deployment $(TRAEFIK_DEPLOY) -n $(TRAEFIK_NAMESPACE)
 
 dev-logs-fmtd:
 	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE) --tail=100 --max-log-requests=6 | go run apis/tooling/logfmt/main.go
