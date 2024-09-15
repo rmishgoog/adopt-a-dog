@@ -127,6 +127,6 @@ metadata:
   name: traefik-proxy
   namespace: traefik-system
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: traefik

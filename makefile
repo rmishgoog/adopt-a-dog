@@ -264,3 +264,16 @@ dev-adoptadog-readiness:
 dev-adoptadog-endpoint-load:
 	hey -n 1000 -c 10 http://localhost:3000/liveness
 #=====================================================================================================
+#Setting up kind cluster for LoadBalancer services
+
+kind-configure-cloud-provider-lb:	kind-remove-label-lb-access kind-install-cloud-provider-lb kind-enable-cloud-provider-lb
+
+kind-remove-label-lb-access:
+	kubectl label node local-cluster-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
+
+kind-install-cloud-provider-lb:
+	go install sigs.k8s.io/cloud-provider-kind@latest
+	sudo install ~/go/bin/cloud-provider-kind /usr/local/bin
+
+kind-enable-cloud-provider-lb:
+	cloud-provider-kind > /dev/null 2>&1 &
