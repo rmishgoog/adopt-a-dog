@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: keycloak-system
+  labels:
+    app: keycloak
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      automountServiceAccountToken: false
+      volumes:
+        - name: tls
+          secret:
+            secretName: keycloak-tls-secret
+      containers:
+        - name: keycloak
+          image: keycloak-image
+          args: ["start-dev"] # Start in dev mode, this is not recommended for production.
+          env:
+            - name: KC_HTTPS_PORT
+              value: "8443"
+            - name: KEYCLOAK_ADMIN
+              value: "admin"
+            - name: KC_LOG_LEVEL
+              value: "INFO"
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: "admin" # This is a placeholder, replace with a secret in production & externalize.
+            - name: KC_HOSTNAME
+              value: "https://local.auth.adoptadog.com"
+            - name: KC_HTTP_MANAGEMENT_PORT
+              value: "8081"
+            - name: KC_HTTPS_CERTIFICATE_FILE
+              value: "/etc/keycloak/tls/tls.crt"
+            - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+              value: "/etc/keycloak/tls/tls.key"
+            - name: KC_LOG
+              value: "console"
+            - name: KC_LOG_CONSOLE_OUTPUT
+              value: "json"
+          ports:
+            - name: websecure
+              containerPort: 8443
+          volumeMounts:
+            - name: tls
+              mountPath: "/etc/keycloak/tls"
+              readOnly: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /realms/master
+              port: 8443
+            initialDelaySeconds: 90
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: keycloak-system
+  labels:
+    app: keycloak
+spec:
+  ports:
+    - name: websecure
+      port: 8443
+      targetPort: websecure
+  selector:
+    app: keycloak
+  type: LoadBalancer

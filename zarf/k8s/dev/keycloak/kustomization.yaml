@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/keycloak/
+patches:
+  - path: ./dev-keycloack-patch.yaml
+images:
+  - name: keycloak-image
+    newName: quay.io/keycloak/keycloak
+    newTag: 25.0.5

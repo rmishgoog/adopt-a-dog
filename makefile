@@ -10,14 +10,16 @@ KEYCLOAK          := quay.io/keycloak/keycloak:25.0.4
 TEMPO             := grafana/tempo:2.5.0
 LOKI              := grafana/loki:3.1.0
 PROMTAIL          := grafana/promtail:3.1.0
-TRAEFIK           := traefik:v3.1
+TRAEFIK           := traefik:v3.1.3
 KIND_CLUSTER      := local-cluster
 NAMESPACE         := adoption-system
 TRAEFIK_NAMESPACE := traefik-system
+KEYCLOAK_NAMESPACE:= keycloak-system
 ADOPT_APP         := adoptadog
 ADOPT_DEPLOY      := adoptions
 TRAEFIK_APP	      := traefik
 TRAEFIK_DEPLOY    := traefik-proxy
+KEYCLOAK_APP      := keycloak
 AUTH_APP          := auth
 BASE_IMAGE_NAME   := localhost/rmishgoog
 VERSION           := 0.0.1
@@ -179,28 +181,51 @@ adoptadog-image-upload:
 	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
 	wait;
 #=====================================================================================================
-#Deploy the application to the Kubernetes cluster & install traefik proxy
+#Deploy/un-deploy the application to the Kubernetes cluster & install traefik proxy, keycloak & other services
 
 dev-apply:
 	kustomize build zarf/k8s/dev/adoptions | kubectl apply -f -
 	kubectl wait pods --for=condition=Ready --timeout=120s -n $(NAMESPACE) --selector app=$(ADOPT_DEPLOY)
 
+dev-unapply:
+	kustomize build zarf/k8s/dev/adoptions | kubectl delete -f -
+
 dev-apply-traefik:
 	kustomize build zarf/k8s/dev/traefik | kubectl apply -f -
 	kubectl wait pods --for=condition=Ready --timeout=120s -n $(TRAEFIK_NAMESPACE) --selector app=$(TRAEFIK_APP)
 
+dev-unapply-traefik:
+	kustomize build zarf/k8s/dev/traefik | kubectl delete -f -
+
+dev-apply-keycloak:
+	kustomize build zarf/k8s/dev/keycloak | kubectl apply -f -
+#	kubectl wait pods --for=condition=Ready --timeout=600s -n $(KEYCLOAK_NAMESPACE) --selector app=$(KEYCLOAK_APP)
+
+dev-unapply-keycloak:
+	kustomize build zarf/k8s/dev/keycloak | kubectl delete -f -
+
+#=====================================================================================================
+#Restart the kubernetes deployments & get status
 dev-restart:
 	kubectl rollout restart deployment $(ADOPT_DEPLOY)  -n $(NAMESPACE)
 
-dev-deploy-status:
-	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
+dev-restart-keycloak:
+	kubectl rollout restart deployment $(KEYCLOAK_APP)  -n $(KEYCLOAK_NAMESPACE)
 
 dev-restart-traefik:
 	kubectl rollout restart deployment $(TRAEFIK_DEPLOY)  -n $(TRAEFIK_NAMESPACE)
 
+dev-deploy-status:
+	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
+
 dev-deploy-traefik-status:
 	kubectl rollout status deployment $(TRAEFIK_DEPLOY) -n $(TRAEFIK_NAMESPACE)
 
+dev-deploy-keycloak-status:
+	kubectl rollout status deployment $(KEYCLOAK_APP) -n $(KEYCLOAK_NAMESPACE)
+
+#=====================================================================================================
+#Get the logs from the adoption application pods
 dev-logs-fmtd:
 	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE) --tail=100 --max-log-requests=6 | go run apis/tooling/logfmt/main.go
 
@@ -226,13 +251,19 @@ dev-describe-pods:
 # Operations for Cilium
 
 dev-cilium-status:
-	cilium status
+	cilium status --wait
+
+dev-reboot-cilium:	dev-cluster-cilium-reinstall dev-cluster-cilium-hubble-enable
 
 dev-cluster-cilium-reinstall:
 	cilium uninstall
 	wait;
 
 	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
+	cilium status --wait
+
+dev-cluster-cilium-hubble-enable:
+	cilium hubble enable --ui & \
 	cilium status --wait
 
 dev-cluster-cilium-client:
@@ -277,3 +308,12 @@ kind-install-cloud-provider-lb:
 
 kind-enable-cloud-provider-lb:
 	cloud-provider-kind > /dev/null 2>&1 &
+#=====================================================================================================
+#Setting up the private key & certificate for the keycloak service
+#The following commands will use openssl to create a self-signed certificate for the keycloak service
+# openssl genpkey -algorithm RSA -out key.pem
+# openssl req -new -x509 -key key.pem -out cert.pem -days 365
+# openssl x509 -text -noout -in cert.pem
+# After creating the certificate, the following command will create a secret in the Kubernetes cluster
+# kubectl create secret tls keycloak-tls-secret --key=key.pem --cert=cert.pem -n keycloak-system
+#=====================================================================================================

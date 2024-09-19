@@ -2,6 +2,8 @@
 .gitignore
 zarf/docker/
 zarf/k8s/
+zarf/certs/
 LICENSE
 makefile
 README.md
+.vscode/

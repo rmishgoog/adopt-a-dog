@@ -6,14 +6,15 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxy
+    - name: web
       port: 80
-      targetPort: proxy
+      targetPort: web
+    - name: websecure
+      port: 443
+      targetPort: websecure
   selector:
     app: traefik
-
 ---
-
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -36,7 +37,7 @@ spec:
       serviceAccountName: traefik-sa
       containers:
         - name: traefik
-          image: traefik:v3.1
+          image: traefik:v3.1.3
           resources:
             requests:
               memory: "64Mi"
@@ -45,8 +46,11 @@ spec:
               memory: "128Mi"
               cpu: "500m"
           args:
-            - --api.insecure
+            - --entrypoints.web.address=:80
             - --providers.kubernetesingress
+            - --entrypoints.websecure.address=:443
           ports:
-            - name: proxy
+            - name: web
               containerPort: 80
+            - name: websecure
+              containerPort: 443
