@@ -317,3 +317,24 @@ kind-enable-cloud-provider-lb:
 # After creating the certificate, the following command will create a secret in the Kubernetes cluster
 # kubectl create secret tls keycloak-tls-secret --key=key.pem --cert=cert.pem -n keycloak-system
 #=====================================================================================================
+#Generate an OAuth2 access token for the API
+#You need to do the set up before you can use this command, this app has keycloak as the OAuth2 provider
+#and the self-signed certificate for the keycloak service use local.auth.adoptadog.com as the host, keycloak
+#service is running on port 443 (LoadBalancer service) and the realm is apiclients
+# curl -kv POST https://local.auth.adoptadog.com/realms/adoptadog/protocol/openid-connect/token \
+# -H 'content-type: application/x-www-form-urlencoded' \
+# -d 'client_id=local-test-harness' \
+# -d 'username=api-developer&password=api-developer&grant_type=password' | jq --raw-output '.access_token'
+dev-get-access-token:
+	curl -kv POST https://local.auth.adoptadog.com/realms/adoptadog/protocol/openid-connect/token \
+	-H 'content-type: application/x-www-form-urlencoded' \
+	-d 'client_id=local-test-harness' \
+	-d 'username=api-developer&password=api-developer&grant_type=password' | jq --raw-output '.access_token'
+#=====================================================================================================
+#Discovery URL to get the JWKS for the realm
+#https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration
+#Tooling for local development
+dev-get-jwks:
+	curl -kv https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration | jq
+dev-get-token-verify:
+	go run apis/tooling/keys/keys.go
