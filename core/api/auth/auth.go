@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 )
 
 type Claims struct {
@@ -15,14 +15,37 @@ type Claims struct {
 	Roles []string `json:"roles"`
 }
 
+type Config struct {
+	Log       *logger.Logger
+	KeyLookup KeyLookup
+	Issuer    string
+}
+
 type Auth struct {
 	keyLookup KeyLookup
+	method    jwt.SigningMethod
 	parser    *jwt.Parser
 	issuer    string
 }
 
+// New creates a new Auth struct & configures it with the provided Config.
+func New(cfg Config) (*Auth, error) {
+	a := Auth{
+		keyLookup: cfg.KeyLookup,
+		method:    jwt.GetSigningMethod(jwt.SigningMethodES256.Name),
+		parser:    jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Name})),
+		issuer:    cfg.Issuer,
+	}
+	return &a, nil
+}
+
+// Issuer returns the issuer of the token configured in the Auth struct.
+func (a *Auth) Issuer() string {
+	return a.issuer
+}
+
 type KeyLookup interface {
-	PublicKey(kid string) (key string, err error)
+	PublicKey(discoveryURL string, skipCert bool) (key string, err error)
 }
 
 func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, error) {
@@ -46,53 +69,8 @@ func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, er
 
 	kid, ok := kidRaw.(string)
 	if !ok {
-		return Claims{}, fmt.Errorf("key id (kid) is malformed: %w", err)
+		return Claims{}, fmt.Errorf("key id (kid) %s is malformed: %w", kid, err)
 	}
-
-	pem, err := a.keyLookup.PublicKey(kid) // Fetch the public key from the key lookup, this shall be the discovery endpoint of keycloak issuing the token.
-	if err != nil {
-		return Claims{}, fmt.Errorf("failed to fetch public key from the provider: %w", err)
-	}
-
-	input := map[string]any{
-		"Key":   pem,
-		"Token": parts[1],
-		"ISS":   a.issuer,
-	}
-
-	if err := a.opaPolicyEvaluation(ctx, regoAuthentication, RuleAuthenticate, input); err != nil {
-		return Claims{}, fmt.Errorf("authentication failed for the supplied token: %w", err)
-	}
-
-	fmt.Println("authenticated successfully")
 
 	return claims, nil
-}
-
-func (a *Auth) opaPolicyEvaluation(ctx context.Context, regoScript string, rule string, input any) error {
-	query := fmt.Sprintf("x = data.%s.%s", opaPackage, rule)
-
-	q, err := rego.New(
-		rego.Query(query),
-		rego.Module("policy.rego", regoScript),
-	).PrepareForEval(ctx)
-	if err != nil {
-		return err
-	}
-
-	results, err := q.Eval(ctx, rego.EvalInput(input))
-	if err != nil {
-		return fmt.Errorf("query: %w", err)
-	}
-
-	if len(results) == 0 {
-		return errors.New("no results")
-	}
-
-	result, ok := results[0].Bindings["x"].(bool)
-	if !ok || !result {
-		return fmt.Errorf("bindings results[%v] ok[%v]", results, ok)
-	}
-
-	return nil
 }
