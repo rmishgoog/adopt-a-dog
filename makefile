@@ -1,4 +1,4 @@
-#=====================================================================================================
+#=============================================================================================================================================================
 #Define the dependencies for local workstation (Linux (Debian or Ubuntu)only, must be AMD64/x_86 or ARM64), Windows & Macs are not supported at the moment)
 GOLANG            := golang:1.23
 ALPINE            := alpine:3.20
@@ -33,7 +33,7 @@ GOOS              := $(shell go env GOOS)
 GOARCH            := $(shell go env GOARCH)
 HUBBLE_ARCH       := amd64
 HUBBLE_VERSION    := $(shell curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
-#=====================================================================================================
+#=============================================================================================================================================================
 #Install environment dependencies
 
 dev-gotooling:
@@ -88,7 +88,7 @@ dev-docker:
 	docker pull $(TRAEFIK)& \
 	wait;
 
-#=====================================================================================================
+#=============================================================================================================================================================
 #Prepare the Kubernetes environment & manage the cluster (AMD64/x_86 only)
 
 dev-bootstrap-kind: dev-cluster-up dev-docker-loads
@@ -107,6 +107,8 @@ dev-docker-loads:
 	kind load docker-image $(TRAEFIK) --name $(KIND_CLUSTER) & \
 	wait;
 
+#=============================================================================================================================================================
+#Install the Cilium & Hubble for the Kubernetes cluster!
 
 dev-cluster-cilium-install:
 	curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI)/cilium-$(GOOS)-$(GOARCH).tar.gz{,.sha256sum} & \
@@ -142,17 +144,18 @@ dev-cluster-hubble-port-forward:
 dev-cluster-hubble-status:
 	hubble status
 
-
+#=============================================================================================================================================================
+#Tear down the Kubernetes cluster
 dev-cluster-down:
 	kind delete cluster --name $(KIND_CLUSTER)
-
+#=============================================================================================================================================================
 dev-cluster-status:
 	kubectl get nodes -o wide
 	kubectl get po -o wide --all-namespaces --watch
 
 dev-pods-status:
 	watch -n 5 kubectl get pods -o wide --all-namespaces
-#=====================================================================================================
+#=============================================================================================================================================================
 #Local execution from command line & go moduling related commands
 
 run:
@@ -164,7 +167,7 @@ run-logfmt:
 tidy:
 	go mod tidy
 	go mod vendor
-#=====================================================================================================
+#=============================================================================================================================================================
 #Build the application images
 
 build: adoptadog-image	adoptadog-image-upload
@@ -180,7 +183,7 @@ adoptadog-image:
 adoptadog-image-upload:
 	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
 	wait;
-#=====================================================================================================
+#=============================================================================================================================================================
 #Deploy/un-deploy the application to the Kubernetes cluster & install traefik proxy, keycloak & other services
 
 dev-apply:
@@ -204,7 +207,13 @@ dev-apply-keycloak:
 dev-unapply-keycloak:
 	kustomize build zarf/k8s/dev/keycloak | kubectl delete -f -
 
-#=====================================================================================================
+# dev-apply-cilium-lbpool:
+# 	kustomize build zarf/k8s/dev/cilium | kubectl apply -f -
+
+# dev-unapply-cilium-lbpool:
+# 	kustomize build zarf/k8s/dev/cilium | kubectl delete -f -
+
+#=============================================================================================================================================================
 #Restart the kubernetes deployments & get status
 dev-restart:
 	kubectl rollout restart deployment $(ADOPT_DEPLOY)  -n $(NAMESPACE)
@@ -224,22 +233,22 @@ dev-deploy-traefik-status:
 dev-deploy-keycloak-status:
 	kubectl rollout status deployment $(KEYCLOAK_APP) -n $(KEYCLOAK_NAMESPACE)
 
-#=====================================================================================================
+#=============================================================================================================================================================
 #Get the logs from the adoption application pods
 dev-logs-fmtd:
 	kubectl logs -f -l app=$(ADOPT_DEPLOY) -n $(NAMESPACE) --tail=100 --max-log-requests=6 | go run apis/tooling/logfmt/main.go
 
 dev-logs-raw:
 	kubectl logs -f -l app=adoptions -n $(NAMESPACE)
-#=====================================================================================================
+#=============================================================================================================================================================
 #Build & deploy the application from scratch
 
 dev-build-deploy: build dev-apply dev-deploy-status
-#=====================================================================================================
+#=============================================================================================================================================================
 #Build, upload image & restrat the deployment, no KRM changes
 
 dev-build-restrat: build dev-restart
-#=====================================================================================================
+#=============================================================================================================================================================
 #Describe the application deployment & pods
 
 dev-describe-deployment:
@@ -247,7 +256,7 @@ dev-describe-deployment:
 
 dev-describe-pods:
 	kubectl describe pods -n $(NAMESPACE) -l app=$(ADOPT_DEPLOY)
-#=====================================================================================================
+#=============================================================================================================================================================
 # Operations for Cilium
 
 dev-cilium-status:
@@ -280,8 +289,8 @@ dev-cluster-cilium-cep:
 
 dev-cluster-cilium-config-view:
 	cilium config view
-#=====================================================================================================
-# Basic local service testing
+#=============================================================================================================================================================
+#Basic local service testing
 
 dev-kubectl-forward:
 	kubectl port-forward svc/adoptions 3000:3000 -n $(NAMESPACE)& >> /dev/null
@@ -294,21 +303,35 @@ dev-adoptadog-readiness:
 
 dev-adoptadog-endpoint-load:
 	hey -n 1000 -c 10 http://localhost:3000/liveness
-#=====================================================================================================
+#=============================================================================================================================================================
 #Setting up kind cluster for LoadBalancer services
 
-kind-configure-cloud-provider-lb:	kind-remove-label-lb-access kind-install-cloud-provider-lb kind-enable-cloud-provider-lb
+#This section is commented out in favor of MetaLB LoadBalancer IPAM & future versions of this application
+#shall continue to Cilium as the CNI & MetaLB LoadBalancer service IPAM (non-cloud provider environments)
 
-kind-remove-label-lb-access:
-	kubectl label node local-cluster-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
+# kind-configure-cloud-provider-lb:	kind-remove-label-lb-access kind-install-cloud-provider-lb kind-enable-cloud-provider-lb
 
-kind-install-cloud-provider-lb:
-	go install sigs.k8s.io/cloud-provider-kind@latest
-	sudo install ~/go/bin/cloud-provider-kind /usr/local/bin
+# kind-remove-label-lb-access:
+# 	kubectl label node local-cluster-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
 
-kind-enable-cloud-provider-lb:
-	cloud-provider-kind > /dev/null 2>&1 &
-#=====================================================================================================
+# kind-install-cloud-provider-lb:
+# 	go install sigs.k8s.io/cloud-provider-kind@latest
+# 	sudo install ~/go/bin/cloud-provider-kind /usr/local/bin
+
+# kind-enable-cloud-provider-lb:
+# 	cloud-provider-kind > /dev/null 2>&1 &
+
+# MetalLB LoadBalancer service configuration for the local kind cluster
+
+dev-metallb-install: dev-metallb-apply	dev-configure-metallb
+
+dev-metallb-apply:
+	kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+	wait;
+
+dev-configure-metallb:
+	kustomize build zarf/k8s/dev/metal-lb | kubectl apply -f -
+#=============================================================================================================================================================
 #Setting up the private key & certificate for the keycloak service
 #The following commands will use openssl to create a self-signed certificate for the keycloak service
 # openssl genpkey -algorithm RSA -out key.pem
@@ -316,7 +339,7 @@ kind-enable-cloud-provider-lb:
 # openssl x509 -text -noout -in cert.pem
 # After creating the certificate, the following command will create a secret in the Kubernetes cluster
 # kubectl create secret tls keycloak-tls-secret --key=key.pem --cert=cert.pem -n keycloak-system
-#=====================================================================================================
+#=============================================================================================================================================================
 #Generate an OAuth2 access token for the API
 #You need to do the set up before you can use this command, this app has keycloak as the OAuth2 provider
 #and the self-signed certificate for the keycloak service use local.auth.adoptadog.com as the host, keycloak
@@ -330,7 +353,7 @@ dev-get-access-token:
 	-H 'content-type: application/x-www-form-urlencoded' \
 	-d 'client_id=local-test-harness' \
 	-d 'username=api-developer&password=api-developer&grant_type=password' | jq --raw-output '.access_token'
-#=====================================================================================================
+#=============================================================================================================================================================
 #Discovery URL to get the JWKS for the realm
 #https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration
 #Tooling for local development
