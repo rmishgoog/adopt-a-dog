@@ -16,25 +16,25 @@ type Claims struct {
 }
 
 type Config struct {
-	Log       *logger.Logger
-	KeyLookup KeyLookup
-	Issuer    string
+	Log         *logger.Logger
+	jwtValidate JWTValidate
+	Issuer      string
 }
 
 type Auth struct {
-	keyLookup KeyLookup
-	method    jwt.SigningMethod
-	parser    *jwt.Parser
-	issuer    string
+	jwtValidate JWTValidate
+	method      jwt.SigningMethod
+	parser      *jwt.Parser
+	issuer      string
 }
 
 // New creates a new Auth struct & configures it with the provided Config.
 func New(cfg Config) (*Auth, error) {
 	a := Auth{
-		keyLookup: cfg.KeyLookup,
-		method:    jwt.GetSigningMethod(jwt.SigningMethodES256.Name),
-		parser:    jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Name})),
-		issuer:    cfg.Issuer,
+		jwtValidate: cfg.jwtValidate,
+		method:      jwt.GetSigningMethod(jwt.SigningMethodES256.Name),
+		parser:      jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Name})),
+		issuer:      cfg.Issuer,
 	}
 	return &a, nil
 }
@@ -44,7 +44,7 @@ func (a *Auth) Issuer() string {
 	return a.issuer
 }
 
-type KeyLookup interface {
+type JWTValidate interface {
 	PublicKey(discoveryURL string, skipCert bool) (key string, err error)
 	ValidateToken(token string, kid string) error
 }
@@ -73,7 +73,7 @@ func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, er
 		return Claims{}, fmt.Errorf("key id (kid) %s is malformed: %w", kid, err)
 	}
 	// Finally, supply the token string and perform real kid lookup & use that kid to verify the token w/ signature.
-	if err := a.keyLookup.ValidateToken(parts[1], kid); err != nil {
+	if err := a.jwtValidate.ValidateToken(parts[1], kid); err != nil {
 		return Claims{}, fmt.Errorf("error validating token, authentication failed: %w", err)
 	}
 	return claims, nil
