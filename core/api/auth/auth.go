@@ -46,6 +46,7 @@ func (a *Auth) Issuer() string {
 
 type KeyLookup interface {
 	PublicKey(discoveryURL string, skipCert bool) (key string, err error)
+	ValidateToken(token string, kid string) error
 }
 
 func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, error) {
@@ -71,6 +72,9 @@ func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, er
 	if !ok {
 		return Claims{}, fmt.Errorf("key id (kid) %s is malformed: %w", kid, err)
 	}
-
+	// Finally, supply the token string and perform real kid lookup & use that kid to verify the token w/ signature.
+	if err := a.keyLookup.ValidateToken(parts[1], kid); err != nil {
+		return Claims{}, fmt.Errorf("error validating token, authentication failed: %w", err)
+	}
 	return claims, nil
 }
