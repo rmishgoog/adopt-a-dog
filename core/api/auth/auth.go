@@ -10,14 +10,18 @@ import (
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 )
 
+type RealmAccess struct {
+	Roles []string `json:"roles"`
+}
+
 type Claims struct {
 	jwt.RegisteredClaims
-	Roles []string `json:"roles"`
+	RealmAccess RealmAccess `json:"realm_access"`
 }
 
 type Config struct {
 	Log         *logger.Logger
-	jwtValidate JWTValidate
+	JWTValidate JWTValidate
 	Issuer      string
 }
 
@@ -31,7 +35,7 @@ type Auth struct {
 // New creates a new Auth struct & configures it with the provided Config.
 func New(cfg Config) (*Auth, error) {
 	a := Auth{
-		jwtValidate: cfg.jwtValidate,
+		jwtValidate: cfg.JWTValidate,
 		method:      jwt.GetSigningMethod(jwt.SigningMethodES256.Name),
 		parser:      jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Name})),
 		issuer:      cfg.Issuer,
