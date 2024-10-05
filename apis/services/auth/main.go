@@ -14,6 +14,7 @@ import (
 
 	"github.com/ardanlabs/conf/v3"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
+	"github.com/rmishgoog/adopt-a-dog/apis/services/auth/mux"
 	"github.com/rmishgoog/adopt-a-dog/core/api/auth"
 	"github.com/rmishgoog/adopt-a-dog/foundations/keystore"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
@@ -45,9 +46,21 @@ func main() {
 
 }
 
+// This function is where the service will configure itself & bootstraps.
 func run(ctx context.Context, log *logger.Logger) error {
 
 	log.Info(ctx, "server-bootstrap", "GOMAXPROCS", runtime.GOMAXPROCS(0), "build", build)
+	realmKeysLocation := os.Getenv("REALM_JWKS_LOCATION")
+	realmJWTIssuer := os.Getenv("REALM_JWT_ISSUER")
+
+	if realmKeysLocation == "" {
+		log.Info(ctx, "using default realm keys location w/ localhost, this may not work in other environments", "location", "https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration")
+		realmKeysLocation = "https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"
+	}
+	if realmJWTIssuer == "" {
+		log.Info(ctx, "using default realm JWT issuer w/ localhost, this may not work in other environments", "issuer", "https://local.auth.adoptadog.com/realms/adoptadog")
+		realmJWTIssuer = "https://local.auth.adoptadog.com/realms/adoptadog"
+	}
 
 	cfg := struct {
 		conf.Version
@@ -80,6 +93,11 @@ func run(ctx context.Context, log *logger.Logger) error {
 		}{
 			ShutdownTimeout: 60 * time.Second,
 		},
+		Auth: struct {
+			Host string `conf:"default:https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"`
+		}{
+			Host: realmKeysLocation,
+		},
 	}
 
 	const prefix = "adoptions-auth"
@@ -107,20 +125,22 @@ func run(ctx context.Context, log *logger.Logger) error {
 	if err := ks.PublicKey(cfg.Auth.Host, true); err != nil {
 		return fmt.Errorf("failed to fetch public key, likely the OIDC service is not up or having issues: %w", err)
 	}
-	// TODO: Implement this with a Kubernetes configmap or secret mounted as a volume on the container.
+
 	authCfg := auth.Config{
 		Log:         log,
 		JWTValidate: ks,
-		Issuer:      "https://local.auth.adoptadog.com/realms/adoptadog",
+		Issuer:      realmJWTIssuer,
 	}
 
 	auth, err := auth.New(authCfg)
-	if err != nil {
-		return fmt.Errorf("failed to create auth data struct: %w", err)
-	}
-	fmt.Printf("Issuer: %s\n", auth.Issuer())
 
-	// Start the debug service, this is omnipresent in all services. A debug host running locally to help with debugging.
+	if err != nil {
+		return fmt.Errorf("failed to create auth data structure **auth**: %w", err)
+	}
+
+	log.Info(ctx, "bootstrapping the auth service", "issuer", auth.Issuer())
+
+	// Start the debugger for the authentication/authorization service. This goroutine is optional & comment it out if not needed besides local development.
 	go func() {
 		log.Info(ctx, "auth-debug-service", "status", "started", "host", cfg.Web.DebugHost)
 		if err := http.ListenAndServe(cfg.Web.DebugHost, debug.Mux()); err != nil {
@@ -128,7 +148,6 @@ func run(ctx context.Context, log *logger.Logger) error {
 		}
 	}()
 
-	// Start the authn/authz API service.
 	log.Info(ctx, "startup", "status", "initializing authentication & authorization support")
 
 	shutdown := make(chan os.Signal, 1)
@@ -136,7 +155,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	apirouter := http.Server{
 		Addr:         cfg.Web.APIHost,
-		Handler:      nil, //mux.WebAPI(log, shutdown),
+		Handler:      mux.WebAPI(log, auth, shutdown),
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,
@@ -150,8 +169,6 @@ func run(ctx context.Context, log *logger.Logger) error {
 		serverErrors <- apirouter.ListenAndServe()
 	}()
 
-	// This is a blocking select statement, which will wait for either a server error on start up or a shutdown signal.
-	// This is where the application shall hanlde the graceful shutdown of the server or an interrupt signal.
 	select {
 	case err := <-serverErrors:
 		return fmt.Errorf("auth server error: %w", err)

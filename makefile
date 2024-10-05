@@ -15,12 +15,13 @@ KIND_CLUSTER      := local-cluster
 NAMESPACE         := adoption-system
 TRAEFIK_NAMESPACE := traefik-system
 KEYCLOAK_NAMESPACE:= keycloak-system
+AUTH_NAMESPACE	  := auth-system
 ADOPT_APP         := adoptadog
 ADOPT_DEPLOY      := adoptions
 TRAEFIK_APP	      := traefik
 TRAEFIK_DEPLOY    := traefik-proxy
 KEYCLOAK_APP      := keycloak
-AUTH_APP          := auth
+AUTH_APP          := auth-server
 BASE_IMAGE_NAME   := localhost/rmishgoog
 VERSION           := 0.0.1
 ADOPT_IMAGE       := $(BASE_IMAGE_NAME)/$(ADOPT_APP):$(VERSION)
@@ -183,8 +184,22 @@ adoptadog-image:
 adoptadog-image-upload:
 	kind load docker-image $(ADOPT_IMAGE) --name $(KIND_CLUSTER) & \
 	wait;
+
+build-auth: auth-server-image	auth-server-image-upload
+
+auth-server-image:
+	docker build \
+		-t $(AUTH_IMAGE) \
+		-f zarf/docker/dockerfile.auth \
+		--build-arg BUILD_REF=$(VERSION) \
+		--build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+		.
+
+auth-server-image-upload:
+	kind load docker-image $(AUTH_IMAGE) --name $(KIND_CLUSTER) & \
+	wait;
 #=============================================================================================================================================================
-#Deploy/un-deploy the application to the Kubernetes cluster & install traefik proxy, keycloak & other services
+#Deploy/un-deploy the applications to the Kubernetes cluster & install traefik proxy, keycloak & other services
 
 dev-apply:
 	kustomize build zarf/k8s/dev/adoptions | kubectl apply -f -
@@ -202,16 +217,17 @@ dev-unapply-traefik:
 
 dev-apply-keycloak:
 	kustomize build zarf/k8s/dev/keycloak | kubectl apply -f -
-#	kubectl wait pods --for=condition=Ready --timeout=600s -n $(KEYCLOAK_NAMESPACE) --selector app=$(KEYCLOAK_APP)
+	kubectl wait pods --for=condition=Ready --timeout=900s -n $(KEYCLOAK_NAMESPACE) --selector app=$(KEYCLOAK_APP)
 
 dev-unapply-keycloak:
 	kustomize build zarf/k8s/dev/keycloak | kubectl delete -f -
 
-# dev-apply-cilium-lbpool:
-# 	kustomize build zarf/k8s/dev/cilium | kubectl apply -f -
+dev-apply-auth:
+	kustomize build zarf/k8s/dev/auth | kubectl apply -f -
+	kubectl wait pods --for=condition=Ready --timeout=30s -n $(AUTH_NAMESPACE) --selector app=$(AUTH_APP)
 
-# dev-unapply-cilium-lbpool:
-# 	kustomize build zarf/k8s/dev/cilium | kubectl delete -f -
+dev-unapply-auth:
+	kustomize build zarf/k8s/dev/auth | kubectl delete -f -
 
 #=============================================================================================================================================================
 #Restart the kubernetes deployments & get status
@@ -224,6 +240,9 @@ dev-restart-keycloak:
 dev-restart-traefik:
 	kubectl rollout restart deployment $(TRAEFIK_DEPLOY)  -n $(TRAEFIK_NAMESPACE)
 
+dev-restart-auth:
+	kubectl rollout restart deployment $(AUTH_APP)  -n $(AUTH_NAMESPACE)
+
 dev-deploy-status:
 	kubectl rollout status deployment $(ADOPT_DEPLOY) -n $(NAMESPACE)
 
@@ -232,6 +251,9 @@ dev-deploy-traefik-status:
 
 dev-deploy-keycloak-status:
 	kubectl rollout status deployment $(KEYCLOAK_APP) -n $(KEYCLOAK_NAMESPACE)
+
+dev-deploy-auth-status:
+	kubectl rollout status deployment $(AUTH_APP) -n $(AUTH_NAMESPACE)
 
 #=============================================================================================================================================================
 #Get the logs from the adoption application pods

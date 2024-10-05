@@ -1,31 +1,37 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: adoption-system
+  name: auth-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: auth-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: adoptions
-  namespace: adoption-system
+  name: auth-server
+  namespace: auth-system
 spec:
   selector:
     matchLabels:
-      app: adoptions
+      app: auth-server
   template:
     metadata:
       labels:
-        app: adoptions
+        app: auth-server
     spec:
       terminationGracePeriodSeconds: 60
       containers:
-      - name: adoptions
-        image: adoptions-image
+      - name: auth-server
+        image: auth-server-image
         ports:
         - containerPort: 3000
-          name: adoptions
+          name: auth-server
         - containerPort: 3010
-          name: adoptions-debug
+          name: auth-server-debug
         env:
           - name: GOMAXPROCS
             valueFrom:
@@ -62,9 +68,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: adoptions
-  namespace: adoption-system
+  name: auth-server
+  namespace: auth-system
 spec:
   type: ClusterIP
   selector:
-    app: adoptions
+    app: auth-server
