@@ -153,9 +153,15 @@ func run(ctx context.Context, log *logger.Logger) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
+	muxCfg := mux.Config{
+		Build: build,
+		Log:   log,
+		Auth:  auth,
+	}
+
 	apirouter := http.Server{
 		Addr:         cfg.Web.APIHost,
-		Handler:      mux.WebAPI(log, auth, shutdown),
+		Handler:      mux.WebAPI(muxCfg, shutdown),
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,
