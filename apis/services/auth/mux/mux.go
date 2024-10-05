@@ -20,6 +20,7 @@ type Config struct {
 func WebAPI(cfg Config, shutdown chan os.Signal) *web.App {
 
 	mux := web.NewApp(shutdown, middleware.Logger(cfg.Log), middleware.Errors(cfg.Log), middleware.Metrics(), middleware.Panics())
+
 	healthchek.Routes(mux)
 	auth.Routes(mux, auth.Config{Auth: cfg.Auth})
 
