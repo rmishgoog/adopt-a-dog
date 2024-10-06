@@ -1,4 +1,4 @@
-FROM golang:1.23 as build_adoption
+FROM golang:1.23 as build_adoptions
 ENV CGO_ENABLED 0
 ARG BUILD_REF
 
@@ -10,14 +10,14 @@ FROM alpine:3.20
 ARG BUILD_REF
 ARG BUILD_DATE
 RUN addgroup -g 1000 -S adoptions && adduser -u 1000 -S adoptions -G adoption -h /home/adoptions
-COPY --from=build_adoption --chown=adoptions:adoptions /service/apis/services/adoptions/cmd/adoptions /service/adoptions
+COPY --from=build_adoptions --chown=adoptions:adoptions /service/apis/services/adoptions/cmd/adoptions /service/adoptions
 WORKDIR /service
 USER adoptions
 CMD ["./adoptions"]
 
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.title="adoption" \
-      org.opencontainers.image.authors="Rohit Mishra <rohitmishra@google.com>" \
+      org.opencontainers.image.title="adoptions" \
+      org.opencontainers.image.authors="Rohit Mishra <rohitmishra@adoptadog.com>" \
       org.opencontainers.image.source="https://github.com/rmishgoog/adopt-a-dog" \
       org.opencontainers.image.revision="${BUILD_REF}" \
       org.opencontainers.image.vendor="None"
