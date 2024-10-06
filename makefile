@@ -160,10 +160,10 @@ dev-pods-status:
 #Local execution from command line & go moduling related commands
 
 run:
-	go run apis/services/adoptions/main.go
+	go run apis/services/adoptions/cmd/main.go
 
 run-logfmt:
-	go run apis/services/adoptions/main.go | go run apis/tooling/logfmt/main.go
+	go run apis/services/adoptions/cmd/main.go | go run apis/tooling/logfmt/main.go
 
 tidy:
 	go mod tidy
