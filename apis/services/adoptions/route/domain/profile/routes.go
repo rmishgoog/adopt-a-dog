@@ -1,8 +1,19 @@
 package profile
 
-import "github.com/rmishgoog/adopt-a-dog/foundations/web"
+import (
+	"github.com/rmishgoog/adopt-a-dog/app/api/authclient"
+	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
+	"github.com/rmishgoog/adopt-a-dog/foundations/web"
+)
 
-func Routes(app *web.App) {
+type Config struct {
+	Build      string
+	Log        *logger.Logger
+	AuthClient *authclient.ServiceClient
+}
 
-	app.HandleFunc("/profile/{user_id}", profile)
+func Routes(app *web.App, cfg Config) {
+
+	api := newAPI(cfg.Build, cfg.Log, cfg.AuthClient)
+	app.HandleFunc("GET /profile/{uid}", api.profile)
 }

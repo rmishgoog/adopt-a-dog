@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/builder"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/adoptions/mux"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
+	"github.com/rmishgoog/adopt-a-dog/app/api/authclient"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 	"github.com/rmishgoog/adopt-a-dog/foundations/web"
 )
@@ -46,8 +48,9 @@ func main() {
 
 func run(ctx context.Context, log *logger.Logger) error {
 
+	// Load the configuration required for the service to function correctly.
 	log.Info(ctx, "server-bootstrap", "GOMAXPROCS", runtime.GOMAXPROCS(0), "build", build)
-	// Load the configuration.
+
 	cfg := struct {
 		conf.Version
 		Web struct {
@@ -111,7 +114,6 @@ func run(ctx context.Context, log *logger.Logger) error {
 	expvar.NewString("build").Set(cfg.Build)
 
 	// Start the debug service.
-
 	go func() {
 		log.Info(ctx, "debug-service", "status", "started", "host", cfg.Web.DebugHost)
 		if err := http.ListenAndServe(cfg.Web.DebugHost, debug.Mux()); err != nil {
@@ -119,15 +121,29 @@ func run(ctx context.Context, log *logger.Logger) error {
 		}
 	}()
 
-	// Start the API service.
+	// Start the core API service.
 	log.Info(ctx, "startup", "status", "initializing V1 API support")
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
+	logFunc := func(ctx context.Context, msg string, v ...any) {
+		log.Info(ctx, msg, v...)
+	}
+	authclient := authclient.New(cfg.Auth.Host, logFunc)
+
+	// Create a comprehensive mux configuration & pass it along, no discrete passing of values for the mux.
+	// This shall contain everything from logger, shutdown channels to build information that web api needs!
+	muxConfig := mux.Config{
+		Build:      build,
+		Log:        log,
+		AuthClient: authclient,
+		Shutdown:   shutdown,
+	}
+
 	apirouter := http.Server{
 		Addr:         cfg.Web.APIHost,
-		Handler:      mux.WebAPI(log, shutdown),
+		Handler:      mux.WebAPI(muxConfig, builder.Routes()),
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,

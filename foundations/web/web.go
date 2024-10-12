@@ -10,18 +10,22 @@ import (
 	"github.com/google/uuid"
 )
 
+type Logger func(ctx context.Context, msg string, v ...any)
+
 type Handler func(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 
 type App struct {
 	*http.ServeMux
 	shutdown chan os.Signal
+	logger   Logger
 	mw       []MidHandler
 }
 
-func NewApp(shutdown chan os.Signal, mw ...MidHandler) *App {
+func NewApp(shutdown chan os.Signal, log Logger, mw ...MidHandler) *App {
 	return &App{
 		ServeMux: http.NewServeMux(),
 		shutdown: shutdown,
+		logger:   log,
 		mw:       mw,
 	}
 }
