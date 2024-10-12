@@ -51,6 +51,11 @@ func run(ctx context.Context, log *logger.Logger) error {
 	// Load the configuration required for the service to function correctly.
 	log.Info(ctx, "server-bootstrap", "GOMAXPROCS", runtime.GOMAXPROCS(0), "build", build)
 
+	authHost := os.Getenv("AUTH_HOST")
+	if authHost == "" {
+		return fmt.Errorf("fatal error, no authentication endpoint set: %w", errors.New("environment variable AUTH_HOST not set"))
+	}
+
 	cfg := struct {
 		conf.Version
 		Web struct {
@@ -90,6 +95,11 @@ func run(ctx context.Context, log *logger.Logger) error {
 			CORSAllowedOrigins []string      `conf:"default:*,mask"`
 		}{
 			ShutdownTimeout: 60 * time.Second,
+		},
+		Auth: struct {
+			Host string "conf:\"default:http://auth-service.sales-system.svc.cluster.local:6000\""
+		}{
+			Host: authHost,
 		},
 	}
 
