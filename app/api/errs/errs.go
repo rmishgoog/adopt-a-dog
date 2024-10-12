@@ -11,10 +11,10 @@ type Error struct {
 }
 
 // Return a new Error.
-func New(code ErrCode, message string) Error {
+func New(code ErrCode, err error) Error {
 	return Error{
 		Code:    code,
-		Message: message,
+		Message: err.Error(),
 	}
 }
 
