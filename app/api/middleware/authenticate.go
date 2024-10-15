@@ -8,7 +8,7 @@ import (
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 )
 
-func Authenticate(ctx context.Context, log *logger.Logger, client *authclient.ServiceClient, authorization string, handler Handler) error {
+func Authenticate(ctx context.Context, log *logger.Logger, client *authclient.ServiceClient, authorization string, hdl Handler) error {
 
 	resp, err := client.Authenticate(ctx, authorization)
 	if err != nil {
@@ -18,5 +18,5 @@ func Authenticate(ctx context.Context, log *logger.Logger, client *authclient.Se
 	ctx = setUserID(ctx, resp.UserID)
 	ctx = setClaims(ctx, resp.Claims)
 
-	return handler(ctx)
+	return hdl(ctx)
 }
