@@ -20,7 +20,7 @@ func genErrors(ctx context.Context, w http.ResponseWriter, r *http.Request) erro
 		Status: "OK",
 	}
 
-	return web.Respond(ctx, w, r, status, http.StatusOK)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }
 
 func genPanics(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -32,5 +32,5 @@ func genPanics(ctx context.Context, w http.ResponseWriter, r *http.Request) erro
 	}{
 		Status: "ok",
 	}
-	return web.Respond(ctx, w, r, status, http.StatusOK)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }

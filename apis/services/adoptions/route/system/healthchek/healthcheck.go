@@ -26,7 +26,7 @@ func (api *api) liveness(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}{
 		Status: "ok",
 	}
-	return web.Respond(ctx, w, r, status, http.StatusOK)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }
 
 func (api *api) readiness(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -35,5 +35,5 @@ func (api *api) readiness(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}{
 		Status: "ok",
 	}
-	return web.Respond(ctx, w, r, status, http.StatusOK)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }

@@ -28,13 +28,14 @@ func WebAPI(cfg Config, adder RouteAdder) *web.App {
 		cfg.Log.Info(ctx, msg, v...)
 	}
 
+	// Add certain number of middleware functions at the mux level.
 	mux := web.NewApp(cfg.Shutdown,
 		logger, middleware.Logger(cfg.Log),
 		middleware.Errors(cfg.Log),
 		middleware.Metrics(),
 		middleware.Panics(),
 	)
-	adder.Add(mux, cfg)
 
+	adder.Add(mux, cfg)
 	return mux
 }

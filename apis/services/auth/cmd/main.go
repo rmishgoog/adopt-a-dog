@@ -14,6 +14,7 @@ import (
 
 	"github.com/ardanlabs/conf/v3"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/api/debug"
+	"github.com/rmishgoog/adopt-a-dog/apis/services/auth/builder"
 	"github.com/rmishgoog/adopt-a-dog/apis/services/auth/mux"
 	"github.com/rmishgoog/adopt-a-dog/core/api/auth"
 	"github.com/rmishgoog/adopt-a-dog/foundations/keystore"
@@ -154,14 +155,15 @@ func run(ctx context.Context, log *logger.Logger) error {
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
 	muxCfg := mux.Config{
-		Build: build,
-		Log:   log,
-		Auth:  auth,
+		Build:    build,
+		Log:      log,
+		Auth:     auth,
+		Shutdown: shutdown,
 	}
 
 	apirouter := http.Server{
 		Addr:         cfg.Web.APIHost,
-		Handler:      mux.WebAPI(muxCfg, shutdown),
+		Handler:      mux.WebAPI(muxCfg, builder.Routes()),
 		ReadTimeout:  cfg.Web.ReadTimeout,
 		WriteTimeout: cfg.Web.WriteTimeout,
 		IdleTimeout:  cfg.Web.IdleTimeout,

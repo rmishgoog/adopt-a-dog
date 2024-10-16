@@ -44,7 +44,7 @@ func Errors(log *logger.Logger) web.MidHandler {
 			}
 			if err := middleware.Errors(ctx, log, handle); err != nil {
 				errs := err.(errs.Error)
-				if err := web.Respond(ctx, w, r, errs, codeStatus[errs.Code.Value()]); err != nil {
+				if err := web.Respond(ctx, w, errs, codeStatus[errs.Code.Value()]); err != nil {
 					return err
 				}
 			}

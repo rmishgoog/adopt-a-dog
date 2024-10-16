@@ -30,5 +30,5 @@ func (api *api) profile(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}{
 		Status: "ok",
 	}
-	return web.Respond(ctx, w, r, status, http.StatusOK)
+	return web.Respond(ctx, w, status, http.StatusOK)
 }

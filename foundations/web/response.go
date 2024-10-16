@@ -8,9 +8,7 @@ import (
 	"github.com/go-json-experiment/json"
 )
 
-func Respond(ctx context.Context, w http.ResponseWriter, r *http.Request, data any, statusCode int) error {
-
-	// Set the status code for the request.
+func Respond(ctx context.Context, w http.ResponseWriter, data any, statusCode int) error {
 
 	setStatusCode(ctx, statusCode)
 

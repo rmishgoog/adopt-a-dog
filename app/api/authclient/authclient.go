@@ -57,7 +57,7 @@ func (cln *ServiceClient) Authenticate(ctx context.Context, authorization string
 
 	endpoint := fmt.Sprintf("%s/auth/authenticate", cln.url)
 	headers := map[string]string{
-		"authorization": authorization,
+		"Authorization": authorization,
 	}
 
 	var resp AuthenticateResp

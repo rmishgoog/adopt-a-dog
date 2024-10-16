@@ -76,7 +76,6 @@ func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, er
 	if !ok {
 		return Claims{}, fmt.Errorf("key id (kid) %s is malformed: %w", kid, err)
 	}
-	// Finally, supply the token string and perform real kid lookup & use that kid to verify the token w/ signature.
 	if err := a.jwtValidate.ValidateJWT(parts[1], kid); err != nil {
 		return Claims{}, fmt.Errorf("error validating token, authentication failed: %w", err)
 	}

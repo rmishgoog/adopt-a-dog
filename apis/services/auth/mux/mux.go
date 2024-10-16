@@ -1,26 +1,38 @@
 package mux
 
 import (
+	"context"
 	"os"
 
+	"github.com/rmishgoog/adopt-a-dog/apis/services/api/middleware"
 	coreauth "github.com/rmishgoog/adopt-a-dog/core/api/auth"
 	"github.com/rmishgoog/adopt-a-dog/foundations/logger"
 	"github.com/rmishgoog/adopt-a-dog/foundations/web"
 )
 
 type Config struct {
-	Build string
-	Log   *logger.Logger
-	Auth  *coreauth.Auth
+	Build    string
+	Log      *logger.Logger
+	Auth     *coreauth.Auth
+	Shutdown chan os.Signal
 }
 
-func WebAPI(cfg Config, shutdown chan os.Signal) *web.App {
+type RouteAdder interface {
+	Add(app *web.App, cfg Config)
+}
 
-	//mux := web.NewApp(shutdown, middleware.Logger(cfg.Log), middleware.Errors(cfg.Log), middleware.Metrics(), middleware.Panics())
+func WebAPI(cfg Config, adder RouteAdder) *web.App {
 
-	//healthchek.Routes(mux)
-	//auth.Routes(mux, auth.Config{Auth: cfg.Auth})
+	logger := func(ctx context.Context, msg string, v ...any) {
+		cfg.Log.Info(ctx, msg, v...)
+	}
 
-	//return mux
-	return nil
+	mux := web.NewApp(cfg.Shutdown,
+		logger, middleware.Logger(cfg.Log),
+		middleware.Errors(cfg.Log),
+		middleware.Metrics(),
+		middleware.Panics(),
+	)
+	adder.Add(mux, cfg)
+	return mux
 }

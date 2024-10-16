@@ -4,6 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/rmishgoog/adopt-a-dog/app/api/authclient"
+	"github.com/rmishgoog/adopt-a-dog/app/api/errs"
+	"github.com/rmishgoog/adopt-a-dog/app/api/middleware"
 	"github.com/rmishgoog/adopt-a-dog/core/api/auth"
 	"github.com/rmishgoog/adopt-a-dog/foundations/web"
 )
@@ -20,15 +23,15 @@ func newAPI(auth *auth.Auth) *api {
 
 func (a *api) authenticate(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 
-	autheHeader := r.Header.Get("Authorization")
-	if autheHeader == "" {
-		status := struct {
-			Status string `json:"status"`
-		}{
-			Status: "unauthorized",
-		}
-		return web.Respond(ctx, w, r, status, http.StatusUnauthorized)
+	userID, err := middleware.GetUserID(ctx)
+	if err != nil {
+		return errs.New(errs.Unauthenticated, err)
 	}
 
-	return nil
+	resp := authclient.AuthenticateResp{
+		UserID: userID,
+		Claims: middleware.GetClaims(ctx),
+	}
+
+	return web.Respond(ctx, w, resp, http.StatusOK)
 }
