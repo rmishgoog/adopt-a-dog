@@ -226,7 +226,7 @@ dev-apply-auth:
 	kustomize build zarf/k8s/dev/auth | kubectl apply -f -
 	kubectl wait pods --for=condition=Ready --timeout=30s -n $(AUTH_NAMESPACE) --selector app=$(AUTH_APP)
 
-dev-unapply-auth:
+dev-unapply-auth:ustomize build za
 	kustomize build zarf/k8s/dev/auth | kubectl delete -f -
 
 #=============================================================================================================================================================

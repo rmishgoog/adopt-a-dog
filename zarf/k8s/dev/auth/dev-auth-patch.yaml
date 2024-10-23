@@ -1,9 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: auth-system
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: auth-config
@@ -32,14 +27,24 @@ spec:
         image: auth-server-image
         ports:
         - containerPort: 3000
-          name: auth-server
+          name: auth
         - containerPort: 3010
-          name: auth-server-debug
+          name: auth-debug
         env:
           - name: GOMAXPROCS
             valueFrom:
               resourceFieldRef:
                 resource: limits.cpu
+          - name: REALM_JWKS_LOCATION
+            valueFrom:
+              configMapKeyRef:
+                name: auth-config
+                key: REALM_JWKS_LOCATION
+          - name: REALM_JWT_ISSUER
+            valueFrom:
+              configMapKeyRef:
+                name: auth-config
+                key: REALM_JWT_ISSUER
         resources:
           requests:
             memory: "64Mi"
@@ -80,9 +85,9 @@ spec:
   ports:
    - protocol: TCP
      port: 3000
-     targetPort: auth-server
-     name: auth-server
+     targetPort: auth
+     name: auth
    - protocol: TCP
      port: 3010
-     targetPort: auth-server-debug
-     name: auth-server-debug
+     targetPort: auth-debug
+     name: auth-debug

@@ -1,0 +1,23 @@
+FROM golang:1.23 as build_auth
+ENV CGO_ENABLED 0
+ARG BUILD_REF
+
+COPY . /service
+WORKDIR /service/apis/services/auth/cmd
+RUN go build -ldflags "-X main.build=${BUILD_REF}" -o auth
+
+FROM alpine:3.20
+ARG BUILD_REF
+ARG BUILD_DATE
+RUN addgroup -g 1000 -S auth && adduser -u 1000 -S auth -G auth -h /home/auth
+COPY --from=build_auth --chown=auth:auth /service/apis/services/auth/cmd/auth /service/auth
+WORKDIR /service
+USER auth
+CMD ["./auth"]
+
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.title="auth" \
+      org.opencontainers.image.authors="Rohit Mishra <rohitmishra@adoptadog.com>" \
+      org.opencontainers.image.source="https://github.com/rmishgoog/adopt-a-dog" \
+      org.opencontainers.image.revision="${BUILD_REF}" \
+      org.opencontainers.image.vendor="None"

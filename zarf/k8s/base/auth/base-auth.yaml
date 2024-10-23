@@ -29,9 +29,9 @@ spec:
         image: auth-server-image
         ports:
         - containerPort: 3000
-          name: auth-server
+          name: auth
         - containerPort: 3010
-          name: auth-server-debug
+          name: auth-debug
         env:
           - name: GOMAXPROCS
             valueFrom:
