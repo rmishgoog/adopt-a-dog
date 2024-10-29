@@ -92,7 +92,7 @@ dev-docker:
 #=============================================================================================================================================================
 #Prepare the Kubernetes environment & manage the cluster (AMD64/x_86 only)
 
-dev-bootstrap-kind: dev-cluster-up dev-docker-loads
+dev-bootstrap-kind:	dev-cluster-up	dev-docker-loads
 
 dev-cluster-up:
 	kind create cluster --name $(KIND_CLUSTER) --image $(KIND) --config zarf/k8s/dev/kind-config.yaml
@@ -107,6 +107,38 @@ dev-docker-loads:
 	kind load docker-image $(KEYCLOAK) --name $(KIND_CLUSTER) & \
 	kind load docker-image $(TRAEFIK) --name $(KIND_CLUSTER) & \
 	wait;
+
+#=============================================================================================================================================================
+#Install Cilim and Hubble with Helm, this will be the approach moving forward
+dev-install-cilium: dev-cluster-helm-cilium-repo-update	dev-cluster-helm-cilium-repo-add	dev-cluster-helm-cilium-install
+
+dev-cluster-helm-cilium-repo-update:
+	helm repo update
+
+dev-cluster-helm-cilium-repo-add:
+	helm repo add cilium https://helm.cilium.io/
+
+dev-cluster-helm-cilium-install:
+	helm install cilium cilium/cilium --version 1.16.3 \
+  --namespace kube-system \
+  --set prometheus.enabled=true \
+  --set l7Proxy=true \
+  --set operator.prometheus.enabled=true \
+  --set hubble.enabled=true \
+  --set hubble.relay.enabled=true \
+  --set hubble.metrics.enabled="{dns,drop,tcp,flow,port-distribution,icmp,httpV2:exemplars=true;labelsContext=source_ip\,source_namespace\,source_workload\,destination_ip\,destination_namespace\,destination_workload\,traffic_direction}"
+
+dev-cilium-encryption-enable: dev-cilium-enable-wireguard	dev-cilium-restart-ds
+
+dev-cilium-enable-wireguard:
+	helm upgrade cilium cilium/cilium --namespace kube-system \
+  --reuse-values \
+  --set l7Proxy=false \
+  --set encryption.enabled=true \
+  --set encryption.type=wireguard
+
+dev-cilium-restart-ds:
+	kubectl rollout restart daemonset/cilium -n kube-system
 
 #=============================================================================================================================================================
 #Install the Cilium & Hubble for the Kubernetes cluster!
