@@ -55,7 +55,7 @@ func WithCustomClient(httpClient *http.Client) func(*ServiceClient) {
 
 func (cln *ServiceClient) Authenticate(ctx context.Context, authorization string) (AuthenticateResp, error) {
 
-	endpoint := fmt.Sprintf("%s/auth/authenticate", cln.url)
+	endpoint := fmt.Sprintf("%s/authenticate", cln.url)
 	headers := map[string]string{
 		"Authorization": authorization,
 	}

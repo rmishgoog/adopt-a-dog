@@ -18,6 +18,8 @@ spec:
       - name: adoptions
         image: adoptions-image
         env:
+          - name: AUTH_HOST
+            value: "http://auth-server.auth-system.svc.cluster.local:3000"
           - name: GOMAXPROCS
             valueFrom:
               resourceFieldRef:
