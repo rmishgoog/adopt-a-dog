@@ -32,7 +32,7 @@ type KeyStore struct {
 func (ks *KeyStore) PublicKey(discoveryURL string, skipCert bool) error {
 
 	customTLS := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCert}, // This is insecure, don't do this in production
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCert}, // This is insecure, don't do this in production, we must use TLS between pods!
 	}
 	client := &http.Client{Transport: customTLS}
 	resp, err := client.Get(discoveryURL)

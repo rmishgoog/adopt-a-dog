@@ -7,5 +7,5 @@ nodes:
 networking:
   disableDefaultCNI: true
   kubeProxyMode: none
-  serviceSubnet: "10.11.0.0/24"
+  serviceSubnet: "10.100.0.0/24"
   podSubnet: "10.10.0.0/16"

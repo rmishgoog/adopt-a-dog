@@ -55,8 +55,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 	realmJWTIssuer := os.Getenv("REALM_JWT_ISSUER")
 
 	if realmKeysLocation == "" {
-		log.Info(ctx, "using default realm keys location w/ localhost, this may not work in other environments", "location", "https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration")
-		realmKeysLocation = "https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"
+		log.Info(ctx, "using default realm keys location w/ localhost, this may not work in other environments", "location", "local")
+		realmKeysLocation = "https://keycloak.keycloak-system.svc.cluster.local/realms/adoptadog/.well-known/openid-configuration"
 	}
 	if realmJWTIssuer == "" {
 		log.Info(ctx, "using default realm JWT issuer w/ localhost, this may not work in other environments", "issuer", "https://local.auth.adoptadog.com/realms/adoptadog")
@@ -75,7 +75,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 			CORSAllowedOrigins []string      `conf:"default:*,mask"`
 		}
 		Auth struct {
-			Host string `conf:"default:https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"`
+			DiscoveryURL string `conf:"default:https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"`
 		}
 	}{
 		Version: conf.Version{
@@ -95,9 +95,9 @@ func run(ctx context.Context, log *logger.Logger) error {
 			ShutdownTimeout: 60 * time.Second,
 		},
 		Auth: struct {
-			Host string `conf:"default:https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"`
+			DiscoveryURL string `conf:"default:https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"`
 		}{
-			Host: realmKeysLocation,
+			DiscoveryURL: realmKeysLocation,
 		},
 	}
 
@@ -123,7 +123,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	ks := keystore.New()
 
-	if err := ks.PublicKey(cfg.Auth.Host, true); err != nil {
+	if err := ks.PublicKey(cfg.Auth.DiscoveryURL, true); err != nil {
 		return fmt.Errorf("failed to fetch public key, likely the OIDC service is not up or having issues: %w", err)
 	}
 

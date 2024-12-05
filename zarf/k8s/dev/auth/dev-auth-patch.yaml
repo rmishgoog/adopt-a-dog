@@ -4,7 +4,7 @@ metadata:
   name: auth-config
   namespace: auth-system
 data:
-  REALM_JWKS_LOCATION: "https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration"
+  REALM_JWKS_LOCATION: "https://keycloak.keycloak-system.svc.cluster.local/realms/adoptadog/.well-known/openid-configuration"
   REALM_JWT_ISSUER: "https://local.auth.adoptadog.com/realms/adoptadog"
 ---
 apiVersion: apps/v1

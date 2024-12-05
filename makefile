@@ -29,7 +29,9 @@ METRICS_IMAGE     := $(BASE_IMAGE_NAME)/metrics:$(VERSION)
 AUTH_IMAGE        := $(BASE_IMAGE_NAME)/$(AUTH_APP):$(VERSION)
 CILIUM_CLI        := v0.16.15
 CILIUM_NS	      := kube-system
-CILIUM_VERSION    := v1.16.0
+CILIUM_VERSION    := v1.16.3
+API_SERVER_IP     := 172.18.0.4 #Change this if you recreate the cluster
+API_SERVER_PORT   := 6443
 GOOS              := $(shell go env GOOS)
 GOARCH            := $(shell go env GOARCH)
 HUBBLE_ARCH       := amd64
@@ -109,39 +111,120 @@ dev-docker-loads:
 	wait;
 
 #=============================================================================================================================================================
-#Install Cilim and Hubble with Helm, this will be the approach moving forward
-dev-install-cilium: dev-cluster-helm-cilium-repo-update	dev-cluster-helm-cilium-repo-add	dev-cluster-helm-cilium-install
+#This section lays out installation & configuration for Cilium CNI, including enabling & disabling it's various features like encryption, mesh & hubble
 
+#Update the helm repositories
 dev-cluster-helm-cilium-repo-update:
 	helm repo update
 
+#Add cilium repo to the local registry
 dev-cluster-helm-cilium-repo-add:
 	helm repo add cilium https://helm.cilium.io/
 
+#Install cilium using helm in the kube-system namespace (default), kind cluster was created in no kube-proxy mode, cilium will take over
 dev-cluster-helm-cilium-install:
-	helm install cilium cilium/cilium --version 1.16.3 \
-  --namespace kube-system \
-  --set prometheus.enabled=true \
-  --set l7Proxy=true \
-  --set operator.prometheus.enabled=true \
-  --set hubble.enabled=true \
-  --set hubble.relay.enabled=true \
-  --set hubble.metrics.enabled="{dns,drop,tcp,flow,port-distribution,icmp,httpV2:exemplars=true;labelsContext=source_ip\,source_namespace\,source_workload\,destination_ip\,destination_namespace\,destination_workload\,traffic_direction}"
+	helm install cilium cilium/cilium --version $(CILIUM_VERSION) --namespace $(CILIUM_NS) \
+	--set operator.replicas=2 \
+	--set kubeProxyReplacement=true \
+	--set k8sServiceHost=$(API_SERVER_IP) \
+	--set k8sServicePort=$(API_SERVER_PORT)
 
-dev-cilium-encryption-enable: dev-cilium-enable-wireguard	dev-cilium-restart-ds
-
+#Enable wiregaurd node to node transparent encryption
 dev-cilium-enable-wireguard:
-	helm upgrade cilium cilium/cilium --namespace kube-system \
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
   --reuse-values \
-  --set l7Proxy=false \
+  --namespace $(CILIUM_NS) \
   --set encryption.enabled=true \
-  --set encryption.type=wireguard
+  --set encryption.type=wireguard \
+  --set encryption.nodeEncryption=true
 
-dev-cilium-restart-ds:
-	kubectl rollout restart daemonset/cilium -n kube-system
+#Disable wiregaurd node to node transparent encryption
+dev-cilium-disable-wireguard:
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
+  --reuse-values \
+  --namespace $(CILIUM_NS) \
+  --set encryption.enabled=false \
+  --set encryption.nodeEncryption=false
+
+#Enable the cilium service mesh (implemented via envoy)
+dev-cilium-install-mesh:
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
+  --reuse-values \
+  --namespace $(CILIUM_NS) \
+  --set l7Proxy=true \
+  --set ingressController.enabled=true \
+  --set loadBalancer.l7.backend=envoy \
+  --set ingressController.loadbalancerMode=shared
+
+#Enable mtls with SPIFEE & SPIRE on the cluster (this feature is still beta in cilium)
+dev-cilium-spifee-install:
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
+	--reuse-values \
+	--namespace $(CILIUM_NS) \
+	--set authentication.mutual.spire.enabled=true \
+	--set authentication.mutual.spire.install.enabled=true
+
+#Enable hubble ui & hubble relay on this cluster
+dev-cilium-hubble-install:
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
+   --reuse-values \
+   --namespace $(CILIUM_NS) \
+   --set hubble.relay.enabled=true \
+   --set hubble.ui.enabled=true \
+   --wait
+
+#Disable hubble ui & hubble relay on this cluster
+dev-cilium-hubble-ui-uninstall:
+	helm upgrade cilium cilium/cilium --version $(CILIUM_VERSION) \
+   --reuse-values \
+   --namespace $(CILIUM_NS) \
+   --set hubble.relay.enabled=false \
+   --set hubble.ui.enabled=false \
+   --wait
+
+#Restart the cilium operator
+dev-cilium-operator-restart:
+	kubectl -n $(CILIUM_NS) rollout restart deployment/cilium-operator
+
+#Restart the cilium agent
+dev-cilium-agent-restart:
+	kubectl -n $(CILIUM_NS) rollout restart daemonset/cilium
+
+
+#Install & uninstall consolidated makefile tasks
+#--------------------------------------------------------------------------------------------------------------------------
+
+#Install basic cilium configuration with helm
+dev-install-cilium: dev-cluster-helm-cilium-repo-update	dev-cluster-helm-cilium-repo-add	dev-cluster-helm-cilium-install
+
+#Install the service mesh
+dev-cilium-enable-mesh: dev-cilium-install-mesh	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Enable mtls on the cluster
+dev-cilium-enable-mtls:	dev-cilium-spifee-install	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Enable wiregaurd encryption
+dev-cilium-enable-encryption: dev-cilium-enable-wireguard	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Disable wiregaurd encryption
+dev-cilium-disable-encryption: dev-cilium-disable-wireguard	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Enable hubble relay and hubble ui
+dev-cilium-hubble-enable:	dev-cilium-hubble-install	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Disable hubble relay and hubble ui
+dev-cilium-hubble-disable:	dev-cilium-hubble-ui-uninstall	dev-cilium-operator-restart	dev-cilium-agent-restart
+
+#Uninstall cilium
+dev-cilium-helm-uninstall:
+	helm delete cilium --namespace $(CILIUM_NS)
+
+#Contingency command *only* if hubble does not install gracefully w/ helm
+dev-cilium-hubble-install-cli:
+	cilium hubble enable --ui --namespace $(CILIUM_NS)
 
 #=============================================================================================================================================================
-#Install the Cilium & Hubble for the Kubernetes cluster!
+#Install Cilium & Hubble CLI
 
 dev-cluster-cilium-install:
 	curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/download/$(CILIUM_CLI)/cilium-$(GOOS)-$(GOARCH).tar.gz{,.sha256sum} & \
@@ -152,9 +235,6 @@ dev-cluster-cilium-install:
 	wait;
 
 	rm cilium-$(GOOS)-$(GOARCH).tar.gz && rm cilium-linux-amd64.tar.gz.sha256sum
-	
-	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
-	cilium status --wait
 
 dev-cluster-hubble-cli-install:
 	curl -L --fail --remote-name-all https://github.com/cilium/hubble/releases/download/$(HUBBLE_VERSION)/hubble-linux-$(HUBBLE_ARCH).tar.gz{,.sha256sum} & \
@@ -163,19 +243,7 @@ dev-cluster-hubble-cli-install:
 	sudo tar xzvfC hubble-linux-$(HUBBLE_ARCH).tar.gz /usr/local/bin & \
 	wait;
 
-	rm hubble-linux-$(HUBBLE_ARCH).tar.gz && rm hubble-linux-$(HUBBLE_ARCH).tar.gz.sha256sum & \
-	hubble version
-
-	cilium hubble enable --ui & \
-	cilium status --wait
-
-dev-cluster-hubble-show: dev-cluster-hubble-port-forward dev-cluster-hubble-status
-
-dev-cluster-hubble-port-forward:
-	cilium hubble port-forward &
-
-dev-cluster-hubble-status:
-	hubble status
+	rm hubble-linux-$(HUBBLE_ARCH).tar.gz && rm hubble-linux-$(HUBBLE_ARCH).tar.gz.sha256sum
 
 #=============================================================================================================================================================
 #Tear down the Kubernetes cluster
@@ -240,12 +308,18 @@ dev-apply:
 dev-unapply:
 	kustomize build zarf/k8s/dev/adoptions | kubectl delete -f -
 
-dev-apply-traefik:
-	kustomize build zarf/k8s/dev/traefik | kubectl apply -f -
-	kubectl wait pods --for=condition=Ready --timeout=120s -n $(TRAEFIK_NAMESPACE) --selector app=$(TRAEFIK_APP)
+# dev-apply-traefik:
+# 	kustomize build zarf/k8s/dev/traefik | kubectl apply -f -
+# 	kubectl wait pods --for=condition=Ready --timeout=120s -n $(TRAEFIK_NAMESPACE) --selector app=$(TRAEFIK_APP)
 
-dev-unapply-traefik:
-	kustomize build zarf/k8s/dev/traefik | kubectl delete -f -
+# dev-unapply-traefik:
+# 	kustomize build zarf/k8s/dev/traefik | kubectl delete -f -
+
+dev-apply-cilium-lb:
+	kustomize build zarf/k8s/dev/cilium-lb | kubectl apply -f -
+
+dev-unapply-cilium-lb:
+	kustomize build zarf/k8s/dev/cilium-lb | kubectl delete -f -
 
 dev-apply-keycloak:
 	kustomize build zarf/k8s/dev/keycloak | kubectl apply -f -
@@ -263,6 +337,7 @@ dev-unapply-auth:ustomize build za
 
 #=============================================================================================================================================================
 #Restart the kubernetes deployments & get status
+
 dev-restart:
 	kubectl rollout restart deployment $(ADOPT_DEPLOY)  -n $(NAMESPACE)
 
@@ -316,19 +391,6 @@ dev-describe-pods:
 dev-cilium-status:
 	cilium status --wait
 
-dev-reboot-cilium:	dev-cluster-cilium-reinstall dev-cluster-cilium-hubble-enable
-
-dev-cluster-cilium-reinstall:
-	cilium uninstall
-	wait;
-
-	cilium install --version $(CILIUM_VERSION) --namespace $(CILIUM_NS)   --set encryption.enabled=true   --set encryption.type=wireguard   --set encryption.nodeEncryption=true& \
-	cilium status --wait
-
-dev-cluster-cilium-hubble-enable:
-	cilium hubble enable --ui & \
-	cilium status --wait
-
 dev-cluster-cilium-client:
 	cilium version --client
 
@@ -336,13 +398,20 @@ dev-cluster-cilium-server:
 	cilium version
 
 dev-cluster-cilium-uninstall:
-	cilium uninstall
+	helm delete cilium -n kube-system
 
 dev-cluster-cilium-cep:
 	kubectl get cep --all-namespaces
 
 dev-cluster-cilium-config-view:
 	cilium config view
+
+dev-cluster-cilium-pods:
+	kubectl get po -n kube-system -l=app.kubernetes.io/part-of=cilium
+
+#Before this command you must issue a port forward to the hubble relay service w/ command 'cilium hubble port-forward&'
+dev-hubble-status:
+	hubble status
 #=============================================================================================================================================================
 #Basic local service testing
 
@@ -377,14 +446,14 @@ dev-adoptadog-endpoint-load:
 
 # MetalLB LoadBalancer service configuration for the local kind cluster
 
-dev-metallb-install: dev-metallb-apply	dev-configure-metallb
+# dev-metallb-install: dev-metallb-apply	dev-configure-metallb
 
-dev-metallb-apply:
-	kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
-	wait;
+# dev-metallb-apply:
+# 	kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+# 	wait;
 
-dev-configure-metallb:
-	kustomize build zarf/k8s/dev/metal-lb | kubectl apply -f -
+# dev-configure-metallb:
+# 	kustomize build zarf/k8s/dev/metal-lb | kubectl apply -f -
 #=============================================================================================================================================================
 #Setting up the private key & certificate for the keycloak service
 #The following commands will use openssl to create a self-signed certificate for the keycloak service
@@ -406,7 +475,7 @@ dev-get-access-token:
 	curl -kv POST https://local.auth.adoptadog.com/realms/adoptadog/protocol/openid-connect/token \
 	-H 'content-type: application/x-www-form-urlencoded' \
 	-d 'client_id=local-test-harness' \
-	-d 'username=api-developer&password=api-developer&grant_type=password' | jq --raw-output '.access_token'
+	-d 'username=api-developer&password=admin&grant_type=password' | jq --raw-output '.access_token'
 #=============================================================================================================================================================
 #Discovery URL to get the JWKS for the realm
 #https://local.auth.adoptadog.com/realms/adoptadog/.well-known/openid-configuration
